@@ -1,0 +1,7 @@
+node_modules
+dist
+.env
+.env.local
+convex/_runner/bundle.ts
+convex/_generated
+.daytona
