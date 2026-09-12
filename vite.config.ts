@@ -4,6 +4,7 @@ import path from "node:path";
 
 export default defineConfig({
   root: "app",
+  envDir: path.resolve(__dirname),
   plugins: [react()],
   resolve: {
     alias: {
