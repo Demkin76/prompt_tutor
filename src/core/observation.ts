@@ -125,6 +125,36 @@ export function asciiView(spec: LevelSpec, state: WorldState): string {
   return rows.join("\n");
 }
 
+/** Whole-level ASCII map of everything the agent has ever seen (`?` = never seen). Entities shown only where currently visible. */
+export function knownMapView(spec: LevelSpec, state: WorldState): string {
+  const [w, h] = state.size;
+  const seen = new Set(state.seen);
+  const r = spec.observation.radius;
+  const c = state.agent.pos;
+  const byPos = new Map<number, Entity>();
+  for (const e of state.entities) {
+    const i = idx(state.size, e.pos);
+    const visibleNow = spec.mode === "towerdefense" || (Math.abs(e.pos[0] - c[0]) <= r && Math.abs(e.pos[1] - c[1]) <= r);
+    if (e.kind === "golem" || visibleNow) {
+      const prev = byPos.get(i);
+      if (!prev || e.kind === "golem") byPos.set(i, e);
+    }
+  }
+  const rows: string[] = [];
+  for (let y = 0; y < h; y++) {
+    let row = "";
+    for (let x = 0; x < w; x++) {
+      const i = y * w + x;
+      const e = byPos.get(i);
+      if (e) row += entityChar(e);
+      else if (seen.has(i)) row += TILE_CHAR[state.tiles[i]];
+      else row += "?";
+    }
+    rows.push(row);
+  }
+  return rows.join("\n");
+}
+
 export function buildObservation(
   spec: LevelSpec,
   state: WorldState,
@@ -141,6 +171,7 @@ export function buildObservation(
     self: { pos: state.agent.pos, facing: state.agent.facing, inventory: [...state.agent.inventory] },
     visible: { tiles: visibleTiles(spec, state), entities: ents },
     asciiView: asciiView(spec, state),
+    knownMap: knownMapView(spec, state),
     memory,
     budget,
   };
@@ -163,7 +194,7 @@ export function buildObservation(
 // ───────────────────────── Memory ─────────────────────────
 
 export function emptyMemory(): AgentMemory {
-  return { knownLandmarks: [], recentEvents: [], marks: [], visitedCount: 0 };
+  return { knownLandmarks: [], recentEvents: [], marks: [], visitedCount: 0, recentPositions: [] };
 }
 
 const LANDMARK_KINDS = new Set(["plank", "key", "door", "lever", "crate", "base", "tower"]);
@@ -228,6 +259,7 @@ export function updateMemory(memory: AgentMemory, spec: LevelSpec, state: WorldS
     recentEvents: [...memory.recentEvents],
     marks: memory.marks.map((m) => ({ pos: [m.pos[0], m.pos[1]] as Vec, note: m.note })),
     visitedCount: memory.visitedCount,
+    recentPositions: [...(memory.recentPositions ?? []), [state.agent.pos[0], state.agent.pos[1]] as Vec].slice(-12),
   };
   const key = (kind: string, p: Vec) => `${kind}@${p[0]},${p[1]}`;
   const have = new Set(next.knownLandmarks.map((l) => key(l.kind, l.pos)));

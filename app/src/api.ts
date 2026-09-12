@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
-import type { DecisionRecord, Frame, LevelRunResult, LevelSpec, ModeId, Replay, RunStatus, RunSummary, TierSpec, WorldState } from "@core/types";
+import type { DecisionRecord, Frame, LevelRunResult, LevelSpec, ModeId, Replay, RunStatus, RunSummary, TierSpec, WorldState, TierResult } from "@core/types";
 import { buildTiers, MODES, mockStore } from "./mock";
 
 // ───────────────────────── Shapes returned by the backend ─────────────────────────
@@ -33,7 +33,9 @@ export interface RunDoc {
   runId: string;
   sessionId: string;
   mode: ModeId;
-  tier: number;
+  tier: number; // starting tier
+  currentTier?: number; // tier being played now (ladder)
+  ladder?: TierResult[];
   charter: string;
   status: RunStatus;
   host?: string;

@@ -7,6 +7,7 @@ const baseUrl = process.env.BASE_URL ?? "/";
 export default defineConfig({
   root: "app",
   base: baseUrl.endsWith("/") ? baseUrl : `${baseUrl}/`,
+  // .env / .env.local live in the project root (next to convex/), not in app/.
   envDir: path.resolve(__dirname),
   plugins: [react()],
   resolve: {

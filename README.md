@@ -1,8 +1,10 @@
 # GOLEM — write. animate. observe.
 
 You do not control the unit. You write one immutable **charter** in natural language; a golem (an LLM agent) then plays
-three hidden levels of the current tier by that charter. Pass all three to unlock the next tier. Every run is a
-deterministic, replayable benchmark.
+three hidden levels of the current tier by that charter. Pass all three and the same run climbs to the next tier
+automatically (a "ladder"); the run ends at the first tier that is not fully passed. Rating = levels passed by one
+charter. Worlds are generated from fresh random seeds every run, and every seed is first proven passable by a
+full-knowledge solver (`approveLevel`) through the real simulation. Every run is deterministic and replayable.
 
 Modes: **Maze** (fog-of-war pathfinding), **Red Floor** (deadly tiles, planks, keys, levers, crates; narrow vision on tier 3),
 **Tower Defense** (deterministic enemy whose rules you read before writing your charter; limited towers).
@@ -60,10 +62,11 @@ npm test
 ## Layout of a run
 
 ```
-charter → runs.create → launch (Daytona sandbox | in-process)
-   → for each of 3 levels: generateLevel(seed) → observe → LLM decision (intent + plan + stopOn)
+charter → runs.create → launch (Daytona sandbox | in-process) for the current tier
+   → for each of 3 levels: pickApprovedSeed → generateLevel(seed) → observe → LLM decision (intent + plan + stopOn)
    → sim.step per action → frames/decisions streamed to Convex → verify → score
-   → run_end: progress/tier unlock, best score per tier
+   → run_end (tier): ladder entry, progress/tier unlock, best score per tier
+   → 3/3 and tiers left? schedule launch again for tier+1 (new sandbox) : finish the run
 ```
 
 See `docs/plans/2026-09-12-golem-mvp.md` for decisions and `docs/ASSETS.md` for the asset request list.

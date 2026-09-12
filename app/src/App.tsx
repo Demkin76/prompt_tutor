@@ -88,7 +88,7 @@ export function App() {
           runId={route.runId}
           mode={route.mode}
           tier={route.tier}
-          onRetry={() => setRoute({ s: "level", mode: route.mode, tier: route.tier, charter: route.charter, attempts: route.attempts })}
+          onRetry={(tier) => setRoute({ s: "level", mode: route.mode, tier, charter: route.charter, attempts: tier === route.tier ? route.attempts : 0 })}
           onReplay={(levelId) => setRoute({ ...route, s: "replay", levelId })}
           onHome={() => setRoute({ s: "home" })}
         />
