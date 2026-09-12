@@ -231,6 +231,8 @@ export interface AgentMemory {
   recentEvents: string[]; // last N human-readable event lines
   marks: { pos: Vec; note: string }[]; // agent notes (from `say` with "mark:" prefix) — optional
   visitedCount: number;
+  /** Last positions (oldest first), so the agent can see it is oscillating. */
+  recentPositions?: Vec[];
 }
 
 export interface Observation {
@@ -242,6 +244,8 @@ export interface Observation {
   visible: { tiles: VisibleTile[]; entities: VisibleEntity[] };
   /** Compact ASCII map of the visible window (rows top to bottom). Legend in system prompt. */
   asciiView: string;
+  /** ASCII map of the whole level as known so far: every tile ever seen, `?` = never seen. Same legend. */
+  knownMap?: string;
   memory: AgentMemory;
   td?: TowerDefenseState & { buildableSlots: Vec[]; towerTypes: TowerTypeSpec[]; opponentCharter: string };
   budget: { ticksLeft: number; callsLeft: number };
@@ -306,12 +310,26 @@ export interface Replay {
 
 export type RunStatus = "queued" | "running" | "finished" | "error";
 
-export interface RunSummary {
-  passedLevels: number; // 0..3
+export interface TierResult {
+  tier: number;
+  passedLevels: number;
   totalLevels: number;
   score: number;
-  tierUnlocked: boolean;
+  unlocked: boolean; // all levels of this tier passed
+}
+
+/**
+ * Summary of one tier (as emitted by the runner in `run_end`) or of a whole ladder run
+ * (aggregated by the backend: `tiers` lists every tier played, `reachedTier` the highest one).
+ */
+export interface RunSummary {
+  passedLevels: number;
+  totalLevels: number;
+  score: number;
+  tierUnlocked: boolean; // last tier played was fully passed
   levels: LevelRunResult[];
+  tiers?: TierResult[];
+  reachedTier?: number;
 }
 
 // ───────────────────────── Streaming frames (runner -> Convex -> UI) ─────────────────────────

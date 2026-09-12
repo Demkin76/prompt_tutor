@@ -4,14 +4,15 @@
  *   npx tsx scripts/run-local.ts --mode redfloor --tier 1 --charter "Go to the altar. Never step on red tiles."
  *   npx tsx scripts/run-local.ts --mode maze --tier 2 --fake            # scripted explorer instead of the LLM
  *   npx tsx scripts/run-local.ts --mode towerdefense --tier 1 --out app/public/demo/td-t1.json
+ *   npx tsx scripts/run-local.ts --mode maze --ladder --random      # climb tiers while 3/3, fresh approved seeds
  *
  * Uses XAI_API_KEY / XAI_MODEL from .env unless --fake is given. Writes all runner messages to --out (demo replay fallback).
  */
 import "dotenv/config";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { getTier, bfs, DIRS, DIR_DELTA } from "../src/core/index";
-import type { AgentDecision, Action, Dir, ModeId, Observation, RunnerMessage, Vec, TileType } from "../src/core/types";
+import { getTier, bfs, DIRS, DIR_DELTA, createRng, pickApprovedSeed, listTiers } from "../src/core/index";
+import type { AgentDecision, Action, Dir, LevelSpec, ModeId, Observation, RunnerMessage, Vec, TileType } from "../src/core/types";
 import { createFakeLlm, createXaiClient, runTier } from "../src/runtime/index";
 
 const args = new Map<string, string>();
@@ -139,11 +140,29 @@ const sink = {
   },
 };
 
+const rng = createRng((Date.now() & 0x7fffffff) >>> 0);
+const pickSeed = args.has("random")
+  ? (spec: LevelSpec) => {
+      const p = pickApprovedSeed(spec, rng);
+      console.log(`  seed for ${spec.id}: ${p.seed} (approved=${p.approval.ok}, tries=${p.tries})`);
+      return p.seed;
+    }
+  : undefined;
 console.log(`mode=${mode} tier=${tierNo} llm=${useFake ? "scripted" : process.env.XAI_MODEL ?? "grok-4-fast"} charter(${charter.length})="${charter}"`);
-const summary = await runTier({ runId: `local-${Date.now()}`, tier, charter, llm, sink });
-console.log(`\nRESULT: ${summary.passedLevels}/${summary.totalLevels} passed, score=${summary.score}${summary.tierUnlocked ? " — tier unlocked" : ""}`);
+const maxTier = listTiers(mode).length;
+let t = tierNo;
+let total = 0, totalLevels = 0, score = 0;
+for (;;) {
+  const spec = getTier(mode, t)!;
+  const summary = await runTier({ runId: `local-${Date.now()}`, tier: spec, charter, llm, sink, pickSeed });
+  total += summary.passedLevels; totalLevels += summary.totalLevels; score += summary.score;
+  console.log(`\nTIER ${t}: ${summary.passedLevels}/${summary.totalLevels} passed, score=${summary.score}${summary.tierUnlocked ? " — tier unlocked" : ""}`);
+  if (!args.has("ladder") || !summary.tierUnlocked || t >= maxTier) break;
+  t++;
+}
+console.log(`\nRESULT: ${total}/${totalLevels} levels, score=${score}, reached tier ${t}`);
 if (out) {
   mkdirSync(dirname(out), { recursive: true });
-  writeFileSync(out, JSON.stringify({ mode, tier: tierNo, charter, recordedAt: new Date().toISOString(), messages }));
+  writeFileSync(out, JSON.stringify({ mode, tier: tierNo, reachedTier: t, charter, recordedAt: new Date().toISOString(), messages }));
   console.log(`wrote ${out} (${messages.length} messages)`);
 }

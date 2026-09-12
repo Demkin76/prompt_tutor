@@ -54,6 +54,8 @@ export interface RunTierOptions {
   engine?: Engine;
   now?: () => number;
   log?: (line: string) => void;
+  /** Replace each catalogue seed with a fresh one (e.g. pickApprovedSeed) so worlds differ per run. */
+  pickSeed?: (spec: LevelSpec) => number;
 }
 
 let defaultEnginePromise: Promise<Engine> | undefined;
@@ -210,8 +212,10 @@ export async function runTier(opts: RunTierOptions): Promise<RunSummary> {
   try {
     const engine = await resolveEngine(opts.engine);
     const results: LevelRunResult[] = [];
+    // Hidden seeds: the caller may replace catalogue seeds with fresh approved ones per level.
+    const levels = opts.pickSeed ? tier.levels.map((l) => ({ ...l, seed: opts.pickSeed!(l) })) : tier.levels;
     // Always run every level so the player sees all three results.
-    for (const spec of tier.levels) {
+    for (const spec of levels) {
       const { result } = await runLevel({ runId, spec, charter, llm, sink, engine, now: opts.now, log: opts.log });
       results.push(result);
     }

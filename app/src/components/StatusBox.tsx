@@ -1,4 +1,5 @@
 import type { WorldState } from "@core/types";
+import { assetUrl } from "../assets";
 
 interface Props {
   state: WorldState | null;
@@ -15,10 +16,11 @@ export function StatusBox({ state, llmCalls, levelIndex, levelsTotal, tier, atte
   return (
     <div className="panel dark status">
       <h2>Status</h2>
+      <img className="mascot" src={assetUrl("ui.mascot", alive ? (state?.status === "won" ? 1 : 0) : 2)} alt="" />
       <dl className="kv">
         <dt>Golem</dt>
         <dd>
-          <span className={`hearts ${alive ? "" : "dead"}`}>{alive ? "♥" : "♡"}</span> {alive ? "alive" : "destroyed"}
+          <img className="icon" src={assetUrl(alive ? "ui.icon.heart" : "ui.icon.heart.empty")} alt="" /> {alive ? "alive" : "destroyed"}
         </dd>
         <dt>Steps</dt>
         <dd>{state?.tick ?? 0}</dd>

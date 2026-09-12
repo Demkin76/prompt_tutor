@@ -1,3 +1,4 @@
+import { assetUrl } from "./assets";
 import { useEffect, useMemo, useState } from "react";
 import type { ModeId } from "@core/types";
 import { BACKEND, golemApi } from "./api";
@@ -35,9 +36,14 @@ export function App() {
 
   return (
     <div className="app">
-      <div className="topbar">
+      <div
+        className="topbar"
+        style={{
+          backgroundImage: `linear-gradient(rgba(10, 10, 14, 0.55), rgba(10, 10, 14, 0.75)), url("${assetUrl("bg.dungeon_wall")}")`,
+        }}
+      >
         <div className="brand" onClick={() => setRoute({ s: "home" })} title="Home">
-          <h1>GOLEM</h1>
+          <img className="logo" src={assetUrl("ui.logo")} alt="GOLEM" />
           <span className="tag">write. animate. observe.</span>
         </div>
         <div className="crumbs">
@@ -82,7 +88,7 @@ export function App() {
           runId={route.runId}
           mode={route.mode}
           tier={route.tier}
-          onRetry={() => setRoute({ s: "level", mode: route.mode, tier: route.tier, charter: route.charter, attempts: route.attempts })}
+          onRetry={(tier) => setRoute({ s: "level", mode: route.mode, tier, charter: route.charter, attempts: tier === route.tier ? route.attempts : 0 })}
           onReplay={(levelId) => setRoute({ ...route, s: "replay", levelId })}
           onHome={() => setRoute({ s: "home" })}
         />

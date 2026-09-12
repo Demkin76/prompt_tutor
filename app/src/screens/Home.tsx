@@ -1,3 +1,4 @@
+import { assetUrl } from "../assets";
 import type { ModeId } from "@core/types";
 import { golemApi, type ModeInfo, type SessionDoc } from "../api";
 
@@ -52,8 +53,9 @@ export function Home({ session, onPickTier }: Props) {
   return (
     <>
       <div className="hero">
-        <h1>GOLEM</h1>
+        <img className="hero-logo" src={assetUrl("ui.logo")} alt="GOLEM" />
         <div className="sub">WRITE. ANIMATE. OBSERVE.</div>
+        <img className="hero-mascot" src={assetUrl("ui.mascot", 1)} alt="" />
         <p className="lead">
           You never touch the golem. You write its charter — a few lines of plain language — and watch it play three levels by your words alone. Pass all three to unlock the
           next tier.
