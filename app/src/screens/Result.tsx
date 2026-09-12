@@ -6,7 +6,7 @@ interface Props {
   runId: string;
   mode: ModeId;
   tier: number;
-  onRetry: () => void;
+  onRetry: (tier: number) => void;
   onReplay: (levelId: string) => void;
   onHome: () => void;
 }
@@ -77,35 +77,53 @@ export function Result({ runId, mode, tier, onRetry, onReplay, onHome }: Props) 
   const run = golemApi.useRun(runId);
   const levelRuns = golemApi.useLevelRuns(runId);
   const tiers = golemApi.useTiers(mode);
-  const tierSpec = tiers?.find((t) => t.tier === tier);
   const sorted = useMemo(() => [...(levelRuns ?? [])].sort((a, b) => a.order - b.order), [levelRuns]);
 
   if (run === null) return <div className="error">Run not found.</div>;
-  if (!run || !tierSpec) return <div className="loading">tallying the verdicts</div>;
+  if (!run || !tiers) return <div className="loading">tallying the verdicts</div>;
   const summary = run.summary;
-  const levels = tierSpec.levels;
+  const maxTier = tiers.length;
+  const played = summary?.tiers ?? run.ladder ?? [];
+  const reached = summary?.reachedTier ?? run.currentTier ?? tier;
+  const clearedAll = played.length > 0 && played[played.length - 1].unlocked && reached >= maxTier;
+  const nextTier = Math.min(maxTier, clearedAll ? maxTier : summary?.tierUnlocked ? reached + 1 : reached);
+  const tiersToShow = played.length > 0 ? played.map((t) => t.tier) : [tier];
 
   return (
     <>
       <div className="summary">
         <div className="score">{summary ? `${summary.score} PTS` : run.status === "error" ? "RUN FAILED" : "PENDING"}</div>
-        <div className="passed">{summary ? `${summary.passedLevels}/${summary.totalLevels} LEVELS PASSED` : ""}</div>
+        <div className="passed">{summary ? `${summary.passedLevels}/${summary.totalLevels} LEVELS PASSED · REACHED TIER ${reached}` : ""}</div>
         <div className="passed" style={{ opacity: 0.7 }}>
-          TIER {tier} · {charterSummary(run.charter)}
+          STARTED AT TIER {tier} · {charterSummary(run.charter)}
         </div>
       </div>
-      {summary?.tierUnlocked && <div className="unlock">TIER {tier + 1} UNLOCKED</div>}
+      {clearedAll && <div className="unlock">ALL TIERS CLEARED</div>}
+      {!clearedAll && summary?.tierUnlocked && reached < maxTier && <div className="unlock">TIER {reached + 1} UNLOCKED</div>}
       {run.status === "error" && <div className="error">{run.error ?? "The run failed."}</div>}
-      <div className="results">
-        {levels.map((l, i) => {
-          const lr = sorted.find((r) => r.levelId === l.id);
-          const result = lr?.result ?? summary?.levels.find((r) => r.levelId === l.id);
-          return <ResultCard key={l.id} index={i + 1} title={l.title} result={result} onReplay={lr ? () => onReplay(l.id) : undefined} />;
-        })}
-      </div>
+      {tiersToShow.map((tn) => {
+        const tierSpec = tiers.find((t) => t.tier === tn);
+        if (!tierSpec) return null;
+        const tr = played.find((t) => t.tier === tn);
+        return (
+          <div key={tn} className="tier-block">
+            <h2 className="tier-heading">
+              TIER {tn} — {tierSpec.title.replace(/^.*— /, "")}
+              {tr ? ` · ${tr.passedLevels}/${tr.totalLevels}` : ""}
+            </h2>
+            <div className="results">
+              {tierSpec.levels.map((l, i) => {
+                const lr = sorted.find((r) => r.levelId === l.id);
+                const result = lr?.result ?? summary?.levels.find((r) => r.levelId === l.id);
+                return <ResultCard key={l.id} index={i + 1} title={l.title} result={result} onReplay={lr ? () => onReplay(l.id) : undefined} />;
+              })}
+            </div>
+          </div>
+        );
+      })}
       <div className="btn-row">
-        <button className="btn primary" onClick={onRetry}>
-          Retry (edit charter)
+        <button className="btn primary" onClick={() => onRetry(nextTier)}>
+          {nextTier > tier ? `Continue at tier ${nextTier} (edit charter)` : "Retry (edit charter)"}
         </button>
         <button className="btn ghost" onClick={onHome}>
           Home

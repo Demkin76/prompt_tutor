@@ -4,7 +4,7 @@ import { internalAction, type ActionCtx } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
 import { RUNNER_SOURCE } from "./_runner/bundle";
-import type { ModeId, RunnerMessage, Sink } from "../src/core/types";
+import type { LevelSpec, ModeId, RunnerMessage, Sink } from "../src/core/types";
 
 /** Convex actions are capped at 10 minutes; leave headroom for sandbox setup/teardown. */
 const RUNNER_TIMEOUT_SECONDS = 540;
@@ -46,7 +46,7 @@ export const run = internalAction({
   },
 });
 
-type RunDoc = { runId: string; mode: string; tier: number; charter: string };
+type RunDoc = { runId: string; mode: string; tier: number; currentTier?: number; charter: string };
 
 async function runInDaytona(ctx: ActionCtx, apiKey: string, runDoc: RunDoc): Promise<void> {
   const { Daytona } = await import("@daytonaio/sdk");
@@ -60,7 +60,7 @@ async function runInDaytona(ctx: ActionCtx, apiKey: string, runDoc: RunDoc): Pro
     RUN_ID: runDoc.runId,
     CONVEX_URL: convexUrl,
     MODE: runDoc.mode,
-    TIER: String(runDoc.tier),
+    TIER: String(runDoc.currentTier ?? runDoc.tier),
     CHARTER: runDoc.charter,
     XAI_API_KEY: xaiKey,
   };
@@ -105,7 +105,7 @@ async function runInDaytona(ctx: ActionCtx, apiKey: string, runDoc: RunDoc): Pro
 }
 
 async function runInProcess(ctx: ActionCtx, runDoc: RunDoc): Promise<void> {
-  const [{ runTier, createXaiClient }, { getTier }] = await Promise.all([
+  const [{ runTier, createXaiClient }, { getTier, createRng, pickApprovedSeed }] = await Promise.all([
     import("../src/runtime/index"),
     import("../src/core/index"),
   ]);
@@ -119,10 +119,14 @@ async function runInProcess(ctx: ActionCtx, runDoc: RunDoc): Promise<void> {
     },
   };
   const llm = createXaiClient({ apiKey, model: process.env.XAI_MODEL || undefined });
-  const tier = getTier(runDoc.mode as ModeId, runDoc.tier);
-  if (!tier) throw new Error(`No such tier ${runDoc.mode}/${runDoc.tier}`);
+  const tierNo = runDoc.currentTier ?? runDoc.tier;
+  const tier = getTier(runDoc.mode as ModeId, tierNo);
+  if (!tier) throw new Error(`No such tier ${runDoc.mode}/${tierNo}`);
 
-  const summary = await runTier({ runId: runDoc.runId, tier, charter: runDoc.charter, llm, sink });
+  // Fresh hidden seeds per run, each proven passable by the full-knowledge solver.
+  const rng = createRng((Date.now() ^ Math.floor(Math.random() * 0x7fffffff)) >>> 0);
+  const pickSeed = (spec: LevelSpec) => pickApprovedSeed(spec, rng).seed;
+  const summary = await runTier({ runId: runDoc.runId, tier, charter: runDoc.charter, llm, sink, pickSeed });
   console.log(`launch.run(${runDoc.runId}): in-process finished, passed ${summary.passedLevels}/${summary.totalLevels}, score ${summary.score}`);
 
   // runTier is expected to push run_end itself; make sure the run doesn't stay "running" if it didn't.

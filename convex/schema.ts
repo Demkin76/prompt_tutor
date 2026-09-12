@@ -24,7 +24,12 @@ export default defineSchema({
     runId: v.string(),
     sessionId: v.string(),
     mode: v.string(),
+    /** Tier the run started at. */
     tier: v.number(),
+    /** Tier currently being played (ladder: advances while every level of a tier is passed). */
+    currentTier: v.optional(v.number()),
+    /** TierResult[] — one entry per tier played so far. */
+    ladder: v.optional(v.any()),
     charter: v.string(),
     status: runStatus,
     host: runHost,

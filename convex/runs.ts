@@ -3,8 +3,8 @@ import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { runHost, runStatus } from "./schema";
 import { ensureSession } from "./sessions";
-import { MODES, getTier } from "../src/core/index";
-import type { ModeId, RunSummary, RunnerMessage, TierSpec } from "../src/core/types";
+import { MODES, getTier, listTiers } from "../src/core/index";
+import type { ModeId, RunSummary, RunnerMessage, TierResult, TierSpec } from "../src/core/types";
 
 function newRunId(): string {
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
@@ -61,6 +61,8 @@ export const create = mutation({
       sessionId,
       mode,
       tier,
+      currentTier: tier,
+      ladder: [],
       charter,
       status: "queued",
       // Real host is decided inside launch.run (process.env is only visible in actions).
@@ -148,9 +150,37 @@ export const ingest = mutation({
         return;
       }
       case "run_end": {
-        const summary = msg.summary as RunSummary;
-        await ctx.db.patch(run._id, { summary, status: "finished", finishedAt: Date.now() });
-        await applyRunToSession(ctx, run.sessionId, run.mode, run.tier, run.charter, summary);
+        // One tier finished. Record it, unlock progress, and either climb to the next tier or finish the run.
+        const tierSummary = msg.summary as RunSummary;
+        const currentTier = run.currentTier ?? run.tier;
+        const ladder: TierResult[] = [...((run.ladder as TierResult[] | undefined) ?? [])];
+        if (!ladder.some((t) => t.tier === currentTier)) {
+          ladder.push({
+            tier: currentTier,
+            passedLevels: tierSummary.passedLevels,
+            totalLevels: tierSummary.totalLevels,
+            score: tierSummary.score,
+            unlocked: tierSummary.tierUnlocked,
+          });
+        }
+        const prevLevels = ((run.summary as RunSummary | undefined)?.levels ?? []).filter((l) => !tierSummary.levels.some((n) => n.levelId === l.levelId));
+        const summary: RunSummary = {
+          passedLevels: ladder.reduce((a, t) => a + t.passedLevels, 0),
+          totalLevels: ladder.reduce((a, t) => a + t.totalLevels, 0),
+          score: Math.round(ladder.reduce((a, t) => a + t.score, 0) * 100) / 100,
+          tierUnlocked: tierSummary.tierUnlocked,
+          levels: [...prevLevels, ...tierSummary.levels],
+          tiers: ladder,
+          reachedTier: currentTier,
+        };
+        await applyRunToSession(ctx, run.sessionId, run.mode, currentTier, run.charter, tierSummary);
+        const maxTier = listTiers(run.mode as ModeId).length;
+        if (tierSummary.tierUnlocked && currentTier < maxTier) {
+          await ctx.db.patch(run._id, { summary, ladder, currentTier: currentTier + 1, status: "running" });
+          await ctx.scheduler.runAfter(0, internal.launch.run, { runId });
+        } else {
+          await ctx.db.patch(run._id, { summary, ladder, status: "finished", finishedAt: Date.now() });
+        }
         return;
       }
       case "error": {
