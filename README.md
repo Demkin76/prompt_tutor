@@ -40,8 +40,8 @@ Without `VITE_CONVEX_URL` the UI starts in **mock mode** with a scripted run, so
 Public sign-up is disabled. Register an account through the authenticated Convex CLI:
 
 ```bash
-npm run auth:register -- person@example.com
-npm run auth:register -- person@example.com --prod
+npm run auth:register:dev -- person@example.com
+npm run auth:register:prod -- person@example.com
 ```
 
 The script prompts for the password and initializes `ADMIN_REGISTRATION_SECRET` on the selected deployment if needed.
@@ -49,8 +49,8 @@ The script prompts for the password and initializes `ADMIN_REGISTRATION_SECRET` 
 Rotate the JWT signing pair (active access tokens will be invalidated):
 
 ```bash
-npm run auth:rotate
-npm run auth:rotate -- --prod
+npm run auth:rotate:dev
+npm run auth:rotate:prod
 ```
 
 ## Deploy (CI)

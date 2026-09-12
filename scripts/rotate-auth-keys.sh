@@ -2,13 +2,15 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 [--prod|--deployment <name>]" >&2
+  echo "Usage: $0 (--dev|--prod|--deployment <name>)" >&2
+  echo "Use npm run auth:rotate:dev or npm run auth:rotate:prod." >&2
   exit 2
 }
 
 deployment_args=()
 case "${1:-}" in
-  "")
+  --dev)
+    shift
     ;;
   --prod)
     deployment_args=(--prod)

@@ -2,32 +2,44 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: $0 <email> [--prod|--deployment <name>]" >&2
+  echo "Usage: $0 <email> (--dev|--prod|--deployment <name>)" >&2
+  echo "Use npm run auth:register:dev or npm run auth:register:prod." >&2
   exit 2
 }
 
-[[ $# -ge 1 ]] || usage
-email=$1
-shift
-
+email=""
 deployment_args=()
-case "${1:-}" in
-  "")
-    ;;
-  --prod)
-    deployment_args=(--prod)
-    shift
-    ;;
-  --deployment)
-    [[ $# -eq 2 ]] || usage
-    deployment_args=(--deployment "$2")
-    shift 2
-    ;;
-  *)
-    usage
-    ;;
-esac
-[[ $# -eq 0 ]] || usage
+target_set=false
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --dev)
+      [[ "$target_set" == false ]] || usage
+      target_set=true
+      shift
+      ;;
+    --prod)
+      [[ "$target_set" == false ]] || usage
+      target_set=true
+      deployment_args=(--prod)
+      shift
+      ;;
+    --deployment)
+      [[ "$target_set" == false && $# -ge 2 ]] || usage
+      target_set=true
+      deployment_args=(--deployment "$2")
+      shift 2
+      ;;
+    -*)
+      usage
+      ;;
+    *)
+      [[ -z "$email" ]] || usage
+      email=$1
+      shift
+      ;;
+  esac
+done
+[[ -n "$email" && "$target_set" == true ]] || usage
 
 read -r -s -p "Password (8+ characters): " password
 echo

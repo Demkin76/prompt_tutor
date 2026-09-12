@@ -12,7 +12,11 @@
     "convex:dev": "convex dev",
     "build:runner": "node scripts/build-runner.mjs",
     "auth:register": "bash scripts/register-user.sh",
-    "auth:rotate": "bash scripts/rotate-auth-keys.sh"
+    "auth:register:dev": "bash scripts/register-user.sh --dev",
+    "auth:register:prod": "bash scripts/register-user.sh --prod",
+    "auth:rotate": "bash scripts/rotate-auth-keys.sh",
+    "auth:rotate:dev": "bash scripts/rotate-auth-keys.sh --dev",
+    "auth:rotate:prod": "bash scripts/rotate-auth-keys.sh --prod"
   },
   "dependencies": {
     "@convex-dev/auth": "^0.0.95",
