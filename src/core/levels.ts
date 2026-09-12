@@ -3,7 +3,6 @@ import type { ActionType, LevelSpec, ModeId, OpponentSpec, TierSpec, TowerTypeSp
 export const MODES: { id: ModeId; title: string; tagline: string }[] = [
   { id: "maze", title: "Maze", tagline: "Find the altar in a labyrinth with limited vision." },
   { id: "redfloor", title: "Red Floor", tagline: "The floor is lava. Planks, keys and levers are your friends." },
-  { id: "towerdefense", title: "Tower Defense", tagline: "Read the enemy's rules, then write a charter that outbuilds them." },
 ];
 
 const NAV_ACTIONS: ActionType[] = ["move", "wait", "pickup", "place", "interact", "say"];
@@ -316,10 +315,10 @@ export const TIERS: TierSpec[] = [
   redTier(1),
   redTier(2),
   redTier(3),
-  tdTier(1),
-  tdTier(2),
-  tdTier(3),
 ];
+
+/** Tower defense is not part of the product any more; its tiers stay only for the engine tests. */
+export const TD_TIERS: TierSpec[] = [tdTier(1), tdTier(2), tdTier(3)];
 
 export const ALL_LEVELS: LevelSpec[] = TIERS.flatMap((t) => t.levels);
 

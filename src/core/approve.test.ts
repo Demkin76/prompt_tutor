@@ -1,3 +1,4 @@
+import { TD_TIERS } from "./levels";
 import { describe, expect, it } from "vitest";
 import { ALL_LEVELS, TIERS } from "./levels";
 import { generateLevel } from "./generators/index";
@@ -36,7 +37,7 @@ describe("approveLevel", () => {
   });
 
   it("rejects an unwinnable spec instead of throwing", () => {
-    const td = ALL_LEVELS.find((l) => l.mode === "towerdefense" && l.tier === 3)!;
+    const td = TD_TIERS[2].levels[0];
     const hopeless: LevelSpec = { ...td, env: { ...td.env, params: { ...td.env.params, towerLimit: 1, baseHp: 1 } } };
     const a = approveLevel(hopeless);
     expect(a.ok).toBe(false);
@@ -122,7 +123,7 @@ describe("pickApprovedSeed", () => {
   });
 
   it("returns the last non-throwing seed with ok=false when nothing is approved", () => {
-    const td = ALL_LEVELS.find((l) => l.mode === "towerdefense")!;
+    const td = TD_TIERS[0].levels[0];
     const hopeless: LevelSpec = { ...td, env: { ...td.env, params: { ...td.env.params, towerLimit: 0 } } };
     const r = pickApprovedSeed(hopeless, createRng(3), 5);
     expect(r.approval.ok).toBe(false);

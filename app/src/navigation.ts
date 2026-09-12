@@ -1,6 +1,6 @@
 import type { ModeId } from "@core/types";
 
-const aliases: Record<string, ModeId> = { red: "redfloor", redfloor: "redfloor", maze: "maze", tower: "towerdefense", towerdefense: "towerdefense" };
+const aliases: Record<string, ModeId> = { red: "redfloor", redfloor: "redfloor", maze: "maze", };
 export function readLaunchLink(hash: string): { mode: ModeId | null; runId?: string } {
   const value = hash.replace(/^#/, "");
   if (value.startsWith("run/")) {

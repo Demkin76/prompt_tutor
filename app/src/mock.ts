@@ -326,7 +326,6 @@ const tdDecisions: DecisionRecord[] = [
 export const MODES: ModeInfo[] = [
   { id: "maze", title: "Maze", tagline: "Find the altar through winding stone corridors." },
   { id: "redfloor", title: "Red Floor", tagline: "The floor is lava. Bridge it or burn." },
-  { id: "towerdefense", title: "Tower Defense", tagline: "Read the enemy's charter. Out-plan it." },
 ];
 
 const MODE_TITLE: Record<ModeId, string> = { maze: "Maze", redfloor: "Red Floor", towerdefense: "Tower Defense" };
