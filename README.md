@@ -37,22 +37,20 @@ Without `VITE_CONVEX_URL` the UI starts in **mock mode** with a scripted run, so
 
 ## Deploy (CI)
 
-Two workflows, one concern each:
+`.github/workflows/deploy.yml` runs two jobs on every push to `main`:
 
-- **Backend** (`.github/workflows/backend.yml`) — builds the runner bundle, runs `convex codegen`, typechecks, pushes the
-  functions to the Convex production deployment, and uploads `convex/_generated` plus a generated `.env.production`
-  (holding `VITE_CONVEX_URL`) as the `convex-generated` artifact.
-- **Frontend** (`.github/workflows/frontend.yml`) — triggered by a successful Backend run, downloads that artifact, builds
-  Vite, and publishes `dist/` to GitHub Pages.
+- **`backend`** — builds the runner bundle, runs `convex codegen`, typechecks, pushes the functions to the Convex
+  production deployment, and uploads `convex/_generated` plus a generated `.env.production` (holding `VITE_CONVEX_URL`)
+  as the `convex-generated` artifact.
+- **`frontend`** — `needs: backend`, downloads that artifact, builds Vite, and publishes `dist/` to GitHub Pages.
 
 Setup: create a production deploy key in Convex, save it as the `CONVEX_PRODUCTION_DEPLOY_KEY` secret in the repository's
 `github-pages` environment, then select **GitHub Actions** as the Pages source. Local development continues to use the
-separate deployment in `.env.local`. The frontend workflow supplies GitHub's path as `BASE_URL`, and Vite exposes the
+separate deployment in `.env.local`. The frontend job supplies GitHub's path as `BASE_URL`, and Vite exposes the
 normalized value to client code as `import.meta.env.BASE_URL`.
 
-`convex/_generated` is not committed, which is why the frontend build consumes it as an artifact instead of regenerating
-it (that would need a deploy key). Running Frontend on its own via **workflow_dispatch** reuses the artifact from the
-latest successful Backend run.
+`convex/_generated` is not committed, which is why the frontend job consumes it as an artifact instead of regenerating it
+(that would need a deploy key).
 
 ## Command-line runs (no backend needed)
 
