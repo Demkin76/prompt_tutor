@@ -24,13 +24,13 @@ npm run preview
 
 1. In the existing Convex production deployment, configure `XAI_API_KEY` and optionally `XAI_MODEL` (default `grok-4-fast`). Set `DAYTONA_API_KEY` only if using Daytona; otherwise the same runtime runs inside the Convex action.
 2. In the GitHub `github-pages` environment, set `CONVEX_PRODUCTION_DEPLOY_KEY` to that deployment's production deploy key. Select GitHub Actions as the Pages source.
-3. Merge the reviewed branch into `main`. `.github/workflows/pages.yml` tests the project, deploys Convex, injects its client URL into `VITE_CONVEX_URL`, builds the five pages and publishes `dist/`.
+3. Merge the reviewed branch into `main`. `.github/workflows/deploy.yml` tests the project and deploys Convex in the backend job. It passes the generated `.env.production` and interfaces to the frontend job, which builds the five pages, checks links and publishes `dist/`.
 
 The build follows the [Convex deploy command](https://docs.convex.dev/cli/reference/deploy) contract and the [Vite multi-page build](https://vite.dev/guide/build#multi-page-app). It receives the deployment URL from Convex rather than hard-coding a development environment.
 
 `npm run build` refuses to silently produce a demo if the backend URL is missing. `npm run build:demo` explicitly opts into an offline showcase. The API keys remain on the backend; only the public Convex client URL is embedded in JavaScript. Do not put API keys in any `VITE_` variable.
 
-For another static host, deploy Convex with `npx convex deploy --cmd "npm run build" --cmd-url-env-var-name VITE_CONVEX_URL` and publish `dist/`. No SPA catch-all rewrite is required: all five `.html` routes exist. Set `BASE_URL=/your-subdirectory/` when hosting under a subpath. Leave it unset at a domain root.
+For another static host, first run `npm run build:runner`, then `npx convex deploy --cmd "node scripts/write-frontend-env.mjs" --cmd-url-env-var-name VITE_CONVEX_URL`. Finally run `npm run build` and publish `dist/`. No SPA catch-all rewrite is required: all five `.html` routes exist. Set `BASE_URL=/your-subdirectory/` when hosting under a subpath. Leave it unset at a domain root.
 
 ## Routes
 

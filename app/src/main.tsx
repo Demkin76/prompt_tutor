@@ -12,22 +12,21 @@ const root = ReactDOM.createRoot(document.getElementById("root")!);
 
 async function mount() {
   await loadAssets();
-if (CONVEX_URL) {
-  const client = new ConvexReactClient(CONVEX_URL);
-  root.render(
-    <React.StrictMode>
-      <ConvexProvider client={client}>
+  if (CONVEX_URL) {
+    const client = new ConvexReactClient(CONVEX_URL);
+    root.render(
+      <React.StrictMode>
+        <ConvexProvider client={client}>
+          <ErrorBoundary><App /></ErrorBoundary>
+        </ConvexProvider>
+      </React.StrictMode>,
+    );
+  } else {
+    root.render(
+      <React.StrictMode>
         <ErrorBoundary><App /></ErrorBoundary>
-      </ConvexProvider>
-    </React.StrictMode>,
-  );
-} else {
-  root.render(
-    <React.StrictMode>
-      <ErrorBoundary><App /></ErrorBoundary>
-    </React.StrictMode>,
-  );
-}
-
+      </React.StrictMode>,
+    );
+  }
 }
 void mount();
