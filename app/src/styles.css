@@ -818,14 +818,6 @@ ul.rules li {
   }
 }
 
-/* Keymaster retains the stone/parchment layout, with amber progression cues. */
-.keymaster .btn.primary { background: #d9a63e; border-color: #ffe09a; color: #241909; }
-.keymaster .mode-title, .keymaster .intent { color: #a56c12; }
-.keymaster .stage { border-color: #bd8c35; }
-.keymaster .locked { border-left: 3px solid #d9a63e; }
-.keymaster-lesson { max-width: 800px; margin: 20px auto; color: #f2ca76; }
-.keymaster-lesson p { font-family: var(--font-body); font-size: 24px; }
-
 /* ───────── sliced atlas assets ───────── */
 .topbar .logo {
   height: 40px;

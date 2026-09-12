@@ -16,7 +16,7 @@ export const DIR_DELTA: Record<Dir, Vec> = {
 };
 
 // ───────────────────────── Modes & tiles ─────────────────────────
-export type ModeId = "maze" | "redfloor" | "keymaster" | "towerdefense";
+export type ModeId = "maze" | "redfloor" | "towerdefense";
 
 /** Static tile layer. Entities (items, doors, towers, enemies) live in `entities`, not here. */
 export type TileType =
@@ -83,7 +83,6 @@ export interface WorldState {
   agent: AgentState;
   td?: TowerDefenseState; // present only in towerdefense
   status: "running" | "won" | "lost" | "out_of_budget";
-  keymaster?: { key: "world" | "inventory" | "consumed"; altar: "idle" | "active"; recentStates: string[] };
   rngState: number; // deterministic PRNG state carried across steps
   /** Tile indices the agent has ever seen, for the renderer's fog memory. */
   seen: number[];
@@ -182,7 +181,7 @@ export interface TowerTypeSpec {
 
 export interface EnvSpec {
   size: Vec;
-  generator: "maze" | "redfloor" | "keymaster" | "towerdefense";
+  generator: "maze" | "redfloor" | "towerdefense";
   params: {
     hazardDensity?: number; // redfloor
     planks?: number; // redfloor: planks scattered

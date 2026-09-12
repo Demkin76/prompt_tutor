@@ -21,29 +21,28 @@ test("mobile navigation and game fit a narrow screen", async ({ page }) => {
   await page.goto("levels.html");
   await page.getByText("Menu", { exact: true }).click();
   await expect(page.locator(".mobile-menu").getByRole("link", { name: "Technology" })).toBeVisible();
-  await page.getByRole("link", { name: "Initialize Keymaster" }).click();
+  await page.getByRole("link", { name: "Initialize Red Floor" }).click();
   await expect(page.getByRole("textbox")).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
-test("Keymaster: charter lock, three trials, results and replay", async ({ page }) => {
+test("Red Floor: charter lock, results and replay", async ({ page }) => {
   await page.clock.install();
-  await page.goto("play.html#key");
-  await page.getByRole("textbox").fill("Исследуй мир, найди ключ, вернись к двери, открой её и достигни алтаря.");
-  await page.getByRole("button", { name: "Оживить", exact: true }).click();
+  await page.goto("play.html#red");
+  await page.getByRole("textbox").fill("Reach the altar. Never step on red tiles.");
+  await page.getByRole("button", { name: "Deploy", exact: true }).click();
   await expect(page.getByText("LOCKED", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "02 / Keymaster" })).toBeDisabled();
-  for (let i = 0; i < 15 && !await page.getByRole("button", { name: "See results" }).isVisible(); i++) await page.clock.runFor(10000);
+  await expect(page.getByRole("button", { name: "01 / Red Floor" })).toBeDisabled();
+  for (let i = 0; i < 30 && !await page.getByRole("button", { name: "See results" }).isVisible(); i++) await page.clock.runFor(10000);
   await page.getByRole("button", { name: "See results" }).click();
-  await expect(page.getByText("KEYMASTER COMPLETE", { exact: true })).toBeVisible();
-  await expect(page.getByText(/3\/3 LEVELS PASSED/)).toBeVisible();
+  await expect(page.getByText(/LEVELS PASSED/)).toBeVisible();
   await page.getByRole("button", { name: /Replay/ }).first().click();
   await expect(page.getByRole("slider", { name: "Replay position" })).toBeVisible();
   await page.getByRole("button", { name: "Step ▶", exact: true }).click();
   await expect(page.getByRole("slider")).toHaveValue("1");
   await page.getByRole("button", { name: "Back to results" }).click();
-  await page.getByRole("button", { name: "Изменить устав" }).click();
-  await expect(page.getByRole("textbox")).toHaveValue("Исследуй мир, найди ключ, вернись к двери, открой её и достигни алтаря.");
+  await page.getByRole("button", { name: /edit charter/ }).click();
+  await expect(page.getByRole("textbox")).toHaveValue("Reach the altar. Never step on red tiles.");
 });
 
 test("stale run link offers recovery", async ({ page }) => {

@@ -2,7 +2,7 @@ import type { TierSpec } from "@core/types";
 import type { LevelRunDoc } from "../api";
 import { Legend } from "./Legend";
 
-const MODE_TITLE = { keymaster: "Keymaster", maze: "Maze", redfloor: "Red Floor", towerdefense: "Tower Defense" } as const;
+const MODE_TITLE = { maze: "Maze", redfloor: "Red Floor", towerdefense: "Tower Defense" } as const;
 
 interface Props {
   tier: TierSpec;
@@ -19,7 +19,7 @@ export function LevelCard({ tier, activeLevelId, levelRuns, objectiveLevelId }: 
       <div className="panel level-card">
         <h2 className="mode-title">{MODE_TITLE[tier.mode]}</h2>
         <div className="tier-line">
-          {tier.mode === "keymaster" ? "Уровень 2 · Зависимые шаги" : `TIER ${tier.tier} — ${tier.title.replace(/^.*— /, "")}`}
+          {`TIER ${tier.tier} — ${tier.title.replace(/^.*— /, "")}`}
         </div>
         <ul className="level-list">
           {tier.levels.map((l, i) => {

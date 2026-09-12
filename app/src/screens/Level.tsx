@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ModeId } from "@core/types";
-import { BACKEND, golemApi } from "../api";
+import { golemApi } from "../api";
 import { CharterEditor } from "../components/CharterPanel";
 import { GolemLog } from "../components/GolemLog";
 import { LevelCard } from "../components/LevelCard";
@@ -59,9 +59,7 @@ export function Level({ sessionId, mode, tier, charter, attempts, onCharterChang
         </div>
       </div>
       <div className="col">
-        <CharterEditor keymaster={mode === "keymaster"} value={charter} budget={budget} onChange={onCharterChange} onDeploy={deploy} deploying={deploying} />
-        {mode === "keymaster" && BACKEND === "mock" && <p className="hint">Демо без LLM: показан пример автономного планирования. Ваш устав не оценивается. Для проверки устава подключите Convex и модель.</p>}
-        {attempts > 0 && mode === "keymaster" && <p className="hint">Подсказка: исследуй мир, подбери ключ, вернись к двери, открой её и продолжи к алтарю.</p>}
+        <CharterEditor value={charter} budget={budget} onChange={onCharterChange} onDeploy={deploy} deploying={deploying} />
         {error && <div className="error">Deploy failed: {error}</div>}
         <GolemLog lines={[]} />
         <StatusBox state={null} llmCalls={0} levelIndex={1} levelsTotal={3} tier={tier} attempts={attempts} />

@@ -11,19 +11,18 @@ Pass all three levels of a tier and the same run climbs automatically (a "ladder
 | Mode | What it trains | Shape |
 |---|---|---|
 | **Red Floor** | Constraints. A goal is not enough — the charter must name what is forbidden. | Deadly tiles; later tiers add planks, keys, levers, crates; vision shrinks on tier 3. |
-| **Keymaster** | Dependencies. Discover a blocked exit, find the key, return, then continue. | One learning level, three hidden 16×16 maps. Key → door → altar. |
 | **Maze** | Exploration under fog of war. | Perfect labyrinth on tier 1; later tiers add loops and a smaller vision window. |
 | **Tower Defense** | Read the opponent's rules, then write a counter-policy. | Deterministic enemy charter is shown *before* you write yours. Limited towers. |
 
-Playable entry points: `play.html#red`, `play.html#key`. All four modes: `play.html#all`. Restore a live run: `play.html#run/<runId>`.
+Playable entry points: `play.html#red`, `play.html#maze`, `play.html#tower`. All modes: `play.html#all`. Restore a live run: `play.html#run/<runId>`.
 
-Prompt budget grows with tier (200 / 300 / 400 characters). Keymaster is a single 400-character level, not a three-tier ladder.
+Prompt budget grows with tier (200 / 300 / 400 characters).
 
 ## Stack
 
 | Piece | Where | Notes |
 |---|---|---|
-| Deterministic engine | `src/core` | zero deps, seeded PRNG, generators, sim, fog, verifier, scoring, 30-level catalogue |
+| Deterministic engine | `src/core` | zero deps, seeded PRNG, generators, sim, fog, verifier, scoring, 27-level catalogue |
 | Agent runtime | `src/runtime` | prompt assembly, x.ai `grok-4-fast` structured JSON, plan/stopOn loop, replay |
 | Runner | `src/runner` → `convex/_runner/bundle.ts` | single-file bundle executed inside a **Daytona** sandbox |
 | Backend | `convex/` | **Convex**: sessions, runs, frames, decisions; `launch` action dispatches to Daytona (or runs in-process) |
@@ -93,7 +92,6 @@ The standard generated Convex interfaces are committed so a fresh checkout can b
 npx tsx scripts/run-local.ts --mode redfloor --tier 1 --charter "Reach the altar. Never step on red tiles."
 npx tsx scripts/run-local.ts --mode maze --tier 2 --fake                     # scripted explorer instead of the LLM
 npx tsx scripts/run-local.ts --mode towerdefense --tier 1 --out app/public/demo/td.json
-npx tsx scripts/run-local.ts --mode keymaster --tier 1 --charter "Find the key, open the door, then go to the altar."
 ```
 
 Pre-recorded tier-1 (and later) replays for maze, red floor, and tower defense live in `app/public/demo/` (demo fallback).
@@ -118,4 +116,4 @@ charter → runs.create → launch (Daytona sandbox | in-process) for the curren
    → 3/3 and tiers left? schedule launch again for tier+1 (new sandbox) : finish the run
 ```
 
-See `docs/plans/2026-09-12-golem-mvp.md` for design decisions, `docs/ASSETS.md` for the asset request list, and [Keymaster implementation and testing](docs/KEYMASTER.md) for the second learning level.
+See `docs/plans/2026-09-12-golem-mvp.md` for design decisions and `docs/ASSETS.md` for the asset request list.

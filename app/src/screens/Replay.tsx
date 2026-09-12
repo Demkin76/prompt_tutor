@@ -120,7 +120,7 @@ export function Replay({ runId, levelId, mode, tier, onBack, onHome }: Props) {
         </div>
       </div>
       <div className="col">
-        <CharterLocked keymaster={mode === "keymaster"} value={lr.replay?.charter ?? run.charter} />
+        <CharterLocked value={lr.replay?.charter ?? run.charter} />
         <GolemLog lines={lines} emptyText="Press play." />
         <StatusBox state={state} llmCalls={decisions.filter((d) => d.tick <= tick).length} levelIndex={lr.spec.index} levelsTotal={3} tier={playingTier} />
       </div>

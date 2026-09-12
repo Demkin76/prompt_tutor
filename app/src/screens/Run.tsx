@@ -84,7 +84,7 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
     state?.status === "won"
       ? { cls: "won", text: mode === "towerdefense" ? "BASE DEFENDED" : "ALTAR REACHED" }
       : state?.status === "lost"
-        ? { cls: "lost", text: mode === "keymaster" ? "ГОЛЕМ ЗАСТРЯЛ" : "GOLEM DESTROYED" }
+        ? { cls: "lost", text: "GOLEM DESTROYED" }
         : state?.status === "out_of_budget"
           ? { cls: "lost", text: "OUT OF BUDGET" }
           : null;
@@ -135,7 +135,7 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
               </button>
             </div>
           )}
-          {!finished && !errored && mode !== "keymaster" && (
+          {!finished && !errored && (
             <div className="btn-row">
               <button className="btn ghost small" onClick={onAbort}>
                 Leave (run continues)
@@ -145,7 +145,7 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
         </div>
       </div>
       <div className="col">
-        <CharterLocked keymaster={mode === "keymaster"} value={charter} budget={tierSpec.levels[0].promptBudget} />
+        <CharterLocked value={charter} budget={tierSpec.levels[0].promptBudget} />
         <GolemLog lines={lines} />
         <StatusBox state={state} llmCalls={llmCalls} levelIndex={levelIndex} levelsTotal={3} tier={playingTier} />
       </div>

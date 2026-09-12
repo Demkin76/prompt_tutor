@@ -39,8 +39,8 @@ Live games use the existing Convex Auth sign-in flow. The application loads game
 ## Routes
 
 - `index.html`, `levels.html`, `technology.html`, `world.html`: website.
-- `play.html#red`, `play.html#key`: Red Floor / Keymaster.
-- `play.html#all`: all four modes, including Maze and Tower Defense.
+- `play.html#red`, `play.html#maze`, `play.html#tower`: Red Floor / Maze / Tower Defense.
+- `play.html#all`: all three modes.
 - `play.html#run/<runId>`: restore an existing run from the backend, including its immutable charter. Offline demo runs only exist in the current page session; expired links show a recovery action.
 
 ## Verification and screenshots
@@ -53,8 +53,8 @@ npx playwright install chromium
 npm run test:browser
 ```
 
-CI also repeats the browser checks under `/prompt_tutor/` to catch broken Pages asset paths. It covers all pages, images, mobile navigation, the complete Keymaster loop, and stale run links.
+CI also repeats the browser checks under `/prompt_tutor/` to catch broken Pages asset paths. It covers all pages, images, mobile navigation, the complete Red Floor loop, and stale run links.
 
-To refresh the real screenshots, start `npm run dev -- --port 5180` in demo mode, then run `npm run screenshots` from another terminal. `CAPTURE_URL` can override the local URL. The script refuses to launch screenshots against live inference. Captures in `app/public/assets/screenshots/` show the real editor, Red Floor replay, Keymaster replay and verified results; their site captions explicitly identify the offline sample strategy.
+To refresh the real screenshots, start `npm run dev -- --port 5180` in demo mode, then run `npm run screenshots` from another terminal. `CAPTURE_URL` can override the local URL. The script refuses to launch screenshots against live inference. Captures in `app/public/assets/screenshots/` show the real editor and Red Floor replay; their site captions explicitly identify the offline sample strategy.
 
 The original asset sheets remain as concept/production art. The game and result screenshots are actual browser captures, not illustrations.

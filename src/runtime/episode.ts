@@ -173,7 +173,7 @@ export async function runLevel(opts: RunLevelOptions): Promise<RunLevelOutput> {
     const triggers = engine.detectTriggers(spec, prev, state, res.events);
     const interrupted =
       triggers.some((t) => stopOn.includes(t)) || res.events.some((e) => e.type === "blocked" || e.type === "invalid_action");
-    if (interrupted || (spec.mode === "keymaster" && (triggers.includes("state_changed") || triggers.includes("new_entity") || triggers.includes("goal_visible")))) queue = [];
+    if (interrupted) queue = [];
   }
 
   if (state.status === "running" && (outOfBudget || !engine.isTerminal(state))) {

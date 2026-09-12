@@ -19,9 +19,7 @@ import type {
 } from "@core/types";
 import type { DecisionRow, FrameRow, LevelRunDoc, ModeInfo, RunDoc, SessionDoc } from "./api";
 import type { RunnerMessage, TierResult } from "@core/types";
-import { keymasterDemoDecision } from "@runtime/keymaster-demo";
-import { createFakeLlm, runTier } from "@runtime/index";
-import { listTiers, getTier } from "@core/index";
+import { listTiers } from "@core/index";
 
 // ───────────────────────── helpers ─────────────────────────
 const W = 12, H = 12;
@@ -328,11 +326,10 @@ const tdDecisions: DecisionRecord[] = [
 export const MODES: ModeInfo[] = [
   { id: "maze", title: "Maze", tagline: "Find the altar through winding stone corridors." },
   { id: "redfloor", title: "Red Floor", tagline: "The floor is lava. Bridge it or burn." },
-  { id: "keymaster", title: "Keymaster", tagline: "Уровень 2 · Планирование зависимых шагов" },
   { id: "towerdefense", title: "Tower Defense", tagline: "Read the enemy's charter. Out-plan it." },
 ];
 
-const MODE_TITLE: Record<ModeId, string> = { keymaster: "Keymaster", maze: "Maze", redfloor: "Red Floor", towerdefense: "Tower Defense" };
+const MODE_TITLE: Record<ModeId, string> = { maze: "Maze", redfloor: "Red Floor", towerdefense: "Tower Defense" };
 
 const ENEMY_CHARTER =
   "I send waves along the path from the spawn to the base.\n" +
@@ -489,14 +486,6 @@ export class MockStore {
     this.runs.set(runId, run);
     this.levelRuns.set(runId, []);
     this.bump();
-    if (args.mode === "keymaster") {
-      const messages: RunnerMessage[] = [];
-      void runTier({ runId, tier: getTier("keymaster", 1)!, charter: args.charter,
-        llm: createFakeLlm(keymasterDemoDecision), sink: { async push(m) { messages.push(m); } },
-      }).then(() => this.playRecorded(runId, run, messages))
-        .catch(e => this.ingest(runId, run, { kind: "error", message: String(e) }));
-      return runId;
-    }
     // Prefer a pre-recorded run of the real engine (app/public/demo/<mode>-t<tier>.json); fall back to the hand-built script.
     fetch(`${import.meta.env.BASE_URL}demo/${args.mode}-t${args.tier}.json`)
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
@@ -553,7 +542,7 @@ export class MockStore {
           tiers: ladder,
           reachedTier: currentTier,
         };
-        if (this.session && run.mode !== "keymaster") {
+        if (this.session) {
           const key = `${run.mode}-${currentTier}`;
           const prev = this.session.best[key];
           const best = { ...this.session.best };

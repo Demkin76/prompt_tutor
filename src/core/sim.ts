@@ -1,6 +1,6 @@
 import { DIR_DELTA } from "./types";
 import type { Action, Dir, Entity, LevelSpec, SimEvent, SimEventType, StepResult, Vec, WorldState } from "./types";
-import { addSeen, entitiesAt, entityAt, entityById, inBounds, isWalkable, manhattan, idx, samePos, tileAt } from "./grid";
+import { addSeen, entitiesAt, entityAt, entityById, inBounds, isWalkable, samePos, tileAt } from "./grid";
 import { makeEntity } from "./generators/common";
 import { runWave } from "./wave";
 
@@ -63,18 +63,6 @@ export function step(spec: LevelSpec, state: WorldState, action: Action): StepRe
     }
   }
 
-  if (next.keymaster) {
-    for (const e of next.entities) {
-      if ((e.kind === "door" || e.kind === "key") && !state.seen.includes(idx(next.size, e.pos)) && next.seen.includes(idx(next.size, e.pos)))
-        emit(e.kind === "door" ? "door_discovered" : "key_discovered", { id: e.id, pos: e.pos });
-    }
-    const signature = JSON.stringify([next.agent.pos, next.keymaster.key, next.entities.filter(e => e.kind === "door").map(e => e.props.open)]);
-    next.keymaster.recentStates = [...next.keymaster.recentStates, signature].slice(-16);
-    if (next.status === "running" && next.keymaster.recentStates.filter(s => s === signature).length >= 8) {
-      next.status = "lost";
-      emit("agent_stuck", { reason: "repeated_state" });
-    }
-  }
   if (next.status === "running" && next.tick >= spec.limits.ticks) {
     next.status = "out_of_budget";
     emit("budget_exhausted", { ticks: next.tick });
@@ -111,12 +99,11 @@ function doMove(spec: LevelSpec, s: WorldState, dir: Dir, emit: Emit): void {
   } else if (tile === "altar") {
     s.status = "won";
     emit("goal_reached", { pos: to });
-    if (s.keymaster) { s.keymaster.altar = "active"; emit("altar_reached", { pos: to }); }
   }
 }
 
 function doPickup(spec: LevelSpec, s: WorldState, emit: Emit, invalid: Invalid): void {
-  const item = s.entities.find(e => (e.kind === "plank" || e.kind === "key") && (samePos(e.pos, s.agent.pos) || (spec.mode === "keymaster" && manhattan(e.pos, s.agent.pos) === 1)));
+  const item = s.entities.find(e => (e.kind === "plank" || e.kind === "key") && samePos(e.pos, s.agent.pos));
   if (!item) return invalid("nothing_to_pick_up");
   if (item.kind === "plank") {
     const maxCarry = spec.env.params.maxCarry ?? 1;
@@ -126,10 +113,6 @@ function doPickup(spec: LevelSpec, s: WorldState, emit: Emit, invalid: Invalid):
   s.entities = s.entities.filter((e) => e.id !== item.id);
   s.agent.inventory.push(item.kind);
   emit("picked_up", { kind: item.kind, id: item.id, pos: item.pos });
-  if (s.keymaster && item.kind === "key") {
-    s.keymaster.key = "inventory";
-    emit("item_collected", { item: "item.key", id: item.id, pos: item.pos });
-  }
 }
 
 function doPlace(s: WorldState, dir: Dir, emit: Emit, invalid: Invalid): void {
@@ -155,15 +138,9 @@ function doInteract(s: WorldState, dir: Dir, emit: Emit, invalid: Invalid): void
       const k = s.agent.inventory.indexOf("key");
       if (k < 0) {
         emit("door_locked", { id: e.id, pos: target });
-        if (s.keymaster) emit("interaction_failed", { reason: "missing_key", id: e.id });
         return;
       }
       s.agent.inventory.splice(k, 1);
-      if (s.keymaster) {
-        s.keymaster.key = "consumed";
-        emit("key_consumed", { item: "item.key" });
-        emit("door_unlocked", { id: e.id });
-      }
       e.visual.assetKey = "obj.door.open";
       e.props.description = "Open door. The path is clear.";
       e.props.locked = false;

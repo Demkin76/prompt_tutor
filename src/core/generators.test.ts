@@ -11,19 +11,19 @@ function altarPos(s: WorldState): Vec {
 }
 
 describe("level catalogue", () => {
-  it("preserves 27 existing levels and adds three Keymaster worlds", () => {
-    expect(TIERS.length).toBe(10);
-    expect(ALL_LEVELS.length).toBe(30);
+  it("has 9 tiers and 27 levels", () => {
+    expect(TIERS.length).toBe(9);
+    expect(ALL_LEVELS.length).toBe(27);
     for (const t of TIERS) expect(t.levels.length).toBe(3);
-    expect(new Set(ALL_LEVELS.map((l) => l.id)).size).toBe(30);
-    expect(new Set(ALL_LEVELS.map((l) => l.seed)).size).toBe(30);
-    for (const m of MODES) expect(listTiers(m.id).length).toBe(m.id === "keymaster" ? 1 : 3);
+    expect(new Set(ALL_LEVELS.map((l) => l.id)).size).toBe(27);
+    expect(new Set(ALL_LEVELS.map((l) => l.seed)).size).toBe(27);
+    for (const m of MODES) expect(listTiers(m.id).length).toBe(3);
     expect(getTier("maze", 2)?.levels[0].id).toBe("maze-t2-l1");
     expect(getLevel("redfloor-t3-l3")?.tier).toBe(3);
   });
 
   it("budgets and limits escalate per tier", () => {
-    for (const l of ALL_LEVELS.filter(l => l.mode !== "keymaster")) {
+    for (const l of ALL_LEVELS) {
       expect(l.promptBudget).toBe([200, 300, 400][l.tier - 1]);
       expect(l.limits.ticks).toBe([80, 140, 200][l.tier - 1]);
       expect(l.limits.llmCalls).toBe([15, 25, 40][l.tier - 1]);

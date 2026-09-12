@@ -349,7 +349,6 @@ export function approveState(spec: LevelSpec, initial: WorldState): Approval {
       case "maze":
         solveMaze(runner);
         break;
-      case "keymaster":
       case "redfloor":
         solveRedFloor(runner);
         break;
@@ -410,12 +409,7 @@ export function pickApprovedSeed(
   let lastThrown: { seed: number; approval: Approval } | null = null;
   let tries = 0;
   for (; tries < maxTries; ) {
-    let seed = randomSeed(rng);
-    // Keep A/B/C distinct under production randomization: their residues are 0/1/2.
-    if (spec.mode === "keymaster") {
-      seed -= (seed - (spec.index - 1) + 3) % 3;
-      if (seed <= 0) seed += 3;
-    }
+    const seed = randomSeed(rng);
     tries++;
     const candidate: LevelSpec = { ...spec, seed };
     let initial: WorldState;

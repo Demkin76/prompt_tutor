@@ -4,21 +4,20 @@ interface EditableProps {
   onChange: (v: string) => void;
   onDeploy: () => void;
   deploying?: boolean;
-  keymaster?: boolean;
 }
 
-export function CharterEditor({ value, budget, onChange, onDeploy, deploying, keymaster }: EditableProps) {
+export function CharterEditor({ value, budget, onChange, onDeploy, deploying }: EditableProps) {
   const over = value.length > budget;
   const empty = value.trim().length === 0;
   return (
     <div className="panel charter">
-      <h2>{keymaster ? "Устав голема" : "Golem Charter"}</h2>
+      <h2>Golem Charter</h2>
       <textarea
-        aria-label={keymaster ? "Устав голема" : "Golem Charter"}
+        aria-label="Golem Charter"
         disabled={deploying}
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder={keymaster ? "Если путь к цели заблокирован, найди способ устранить препятствие. Используй полезные предметы." : "Write the golem's charter. Explore carefully. Head for the altar."}
+        placeholder="Write the golem's charter. Explore carefully. Head for the altar."
         spellCheck={false}
       />
       <div className={`counter ${over ? "over" : ""}`}>
@@ -28,19 +27,19 @@ export function CharterEditor({ value, budget, onChange, onDeploy, deploying, ke
         </span>
       </div>
       <button className="btn primary big" disabled={empty || over || deploying} onClick={onDeploy}>
-        {deploying ? "Оживление..." : keymaster ? "Оживить" : "Deploy"}
+        {deploying ? "Deploying..." : "Deploy"}
       </button>
-      <div className="hint">{keymaster ? "После оживления устав нельзя изменить до конца попытки." : "The golem will read the charter and act."}</div>
+      <div className="hint">The golem will read the charter and act.</div>
     </div>
   );
 }
 
-export function CharterLocked({ value, budget, keymaster }: { value: string; budget?: number; keymaster?: boolean }) {
+export function CharterLocked({ value, budget }: { value: string; budget?: number }) {
   return (
     <div className="panel charter">
       <h2>
         <span className="lock">
-          <span aria-hidden>{"🔒"}</span> {keymaster ? "Устав голема" : "Golem Charter"}
+          <span aria-hidden>{"🔒"}</span> Golem Charter
         </span>
       </h2>
       <pre className="locked">{value}</pre>

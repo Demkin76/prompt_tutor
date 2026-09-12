@@ -16,7 +16,7 @@ type Route =
   | { s: "result"; runId: string; mode: ModeId; tier: number; charter: string; attempts: number }
   | { s: "replay"; runId: string; levelId: string; mode: ModeId; tier: number; charter: string; attempts: number };
 
-const MODE_TITLE: Record<ModeId, string> = { keymaster: "Keymaster", maze: "Maze", redfloor: "Red Floor", towerdefense: "Tower Defense" };
+const MODE_TITLE: Record<ModeId, string> = { maze: "Maze", redfloor: "Red Floor", towerdefense: "Tower Defense" };
 
 function RestoreRun({ runId, onRestore, onHome }: { runId: string; onRestore: (run: NonNullable<ReturnType<typeof golemApi.useRun>>) => void; onHome: () => void }) {
   const run = golemApi.useRun(runId);
@@ -53,13 +53,13 @@ export function App({ onSignOut }: { onSignOut?: () => void }) {
   }, [ensure, sessionId]);
 
   const crumbs: string[] = [];
-  if (route.s !== "home") crumbs.push(MODE_TITLE[route.mode], route.mode === "keymaster" ? "Уровень 2" : `Tier ${route.tier}`);
+  if (route.s !== "home") crumbs.push(MODE_TITLE[route.mode], `Tier ${route.tier}`);
   if (route.s === "run") crumbs.push("Run");
   if (route.s === "result") crumbs.push("Results");
   if (route.s === "replay") crumbs.push("Replay");
 
   return (
-    <div className={`app ${route.s !== "home" && route.mode === "keymaster" ? "keymaster" : ""}`}>
+    <div className="app">
       <a className="skip-link" href="#facility" onClick={e => { e.preventDefault(); document.getElementById("facility")?.focus(); }}>Skip to game</a>
       <nav className="site-nav" aria-label="Main navigation">
         <a className="site-brand" href="index.html"><span className="site-mark" aria-hidden>▣</span> GOLEM</a>
@@ -69,7 +69,7 @@ export function App({ onSignOut }: { onSignOut?: () => void }) {
       <header className="facility-header" id="facility" tabIndex={-1}>
         <div><div className="facility-kicker">THE TESTING FACILITY / {route.s === "home" ? "SELECT A WORLD" : crumbs.join(" / ")}</div><h1>Write the law. <span>Observe the outcome.</span></h1></div>
         <div className="mode-tabs" aria-label="Game modes">
-          {(["redfloor", "keymaster"] as ModeId[]).map(mode => <button key={mode} className={route.s !== "home" && route.mode === mode ? "active" : ""} disabled={route.s === "run" || !!resumeId} onClick={() => setRoute({ s: "level", mode, tier: 1, charter: loadCharter(mode, 1), attempts: 0 })}>{mode === "redfloor" ? "01" : "02"} / {MODE_TITLE[mode]}</button>)}
+          <button className={route.s !== "home" && route.mode === "redfloor" ? "active" : ""} disabled={route.s === "run" || !!resumeId} onClick={() => setRoute({ s: "level", mode: "redfloor", tier: 1, charter: loadCharter("redfloor", 1), attempts: 0 })}>01 / Red Floor</button>
           <button disabled={route.s === "run" || !!resumeId} onClick={() => setRoute({ s: "home" })}>All modes ↗</button>
           {onSignOut && <button type="button" onClick={onSignOut}>Sign out</button>}
         </div>
@@ -109,7 +109,6 @@ export function App({ onSignOut }: { onSignOut?: () => void }) {
           onRetry={(tier) => setRoute({ s: "level", mode: route.mode, tier, charter: route.charter, attempts: tier === route.tier ? route.attempts : 0 })}
           onReplay={(levelId) => setRoute({ ...route, s: "replay", levelId })}
           onHome={() => setRoute({ s: "home" })}
-          onKeymaster={() => setRoute({ s: "level", mode: "keymaster", tier: 1, charter: loadCharter("keymaster", 1), attempts: 0 })}
         />
       )}
       {route.s === "replay" && (

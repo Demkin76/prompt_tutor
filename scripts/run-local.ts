@@ -9,7 +9,6 @@
  * Uses XAI_API_KEY / XAI_MODEL from .env unless --fake is given. Writes all runner messages to --out (demo replay fallback).
  */
 import "dotenv/config";
-import { keymasterDemoDecision } from "../src/runtime/keymaster-demo";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
 import { getTier, bfs, DIRS, DIR_DELTA, createRng, pickApprovedSeed, listTiers } from "../src/core/index";
@@ -129,7 +128,7 @@ function makeScriptedDecider() {
   };
 }
 
-const llm = useFake ? createFakeLlm(mode === "keymaster" ? keymasterDemoDecision : makeScriptedDecider()) : createXaiClient({ apiKey: process.env.XAI_API_KEY!, model: process.env.XAI_MODEL });
+const llm = useFake ? createFakeLlm(makeScriptedDecider()) : createXaiClient({ apiKey: process.env.XAI_API_KEY!, model: process.env.XAI_MODEL });
 const messages: RunnerMessage[] = [];
 const sink = {
   async push(msg: RunnerMessage) {

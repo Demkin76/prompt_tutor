@@ -24,7 +24,7 @@ function ModeCard({ mode, session, onPickTier }: { mode: ModeInfo; session: Sess
                 {locked ? "🔒" : best && best.passedLevels === 3 ? "🏆" : "▶"}
               </span>
               <span className="name">
-                {mode.id === "keymaster" ? "УРОВЕНЬ 2" : `TIER ${t.tier}`}
+                {`TIER ${t.tier}`}
                 <br />
                 <span style={{ opacity: 0.7 }}>{t.title.replace(/^.*— /, "")}</span>
               </span>

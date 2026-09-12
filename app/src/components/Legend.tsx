@@ -5,12 +5,6 @@ import { drawAsset, drawTile, TILE_LABELS } from "../render";
 type Item = { tile: TileType; label?: string } | { asset: string; kind: string; label: string };
 
 const LEGEND: Record<ModeId, Item[]> = {
-  keymaster: [
-    { tile: "floor", label: "Обычная плита — можно идти" },
-    { asset: "item.key", kind: "key", label: "Ключ — можно подобрать" },
-    { asset: "obj.door.closed", kind: "door", label: "Запертая дверь — нужен ключ" },
-    { tile: "altar", label: "Алтарь — выход" },
-  ],
   maze: [
     { tile: "floor" },
     { tile: "wall" },
