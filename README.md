@@ -1,14 +1,23 @@
-# GOLEM — write. animate. observe.
+# GOLEM
 
-You do not control the unit. You write one immutable **charter** in natural language; a golem (an LLM agent) then plays
-three hidden levels of the current tier by that charter. Pass all three and the same run climbs to the next tier
-automatically (a "ladder"); the run ends at the first tier that is not fully passed. Rating = levels passed by one
-charter. Worlds are generated from fresh random seeds every run, and every seed is first proven passable by a
-full-knowledge solver (`approveLevel`) through the real simulation. Every run is deterministic and replayable.
+A training game for learning prompting.
 
-Modes: **Maze** (fog-of-war pathfinding), **Red Floor** (deadly tiles, planks, keys, levers, crates; narrow vision on tier 3),
-**Keymaster** (level 2: key → locked door → exit, with three hidden maps),
-**Tower Defense** (deterministic enemy whose rules you read before writing your charter; limited towers).
+You never move the unit. You write one immutable **charter** — a short natural-language policy — then watch an LLM agent play three hidden worlds by those words alone. The maps are generated after the charter is locked, so a hard-coded route fails and a general instruction has to survive. Rating = levels passed by one charter; shorter text, fewer ticks, and fewer model calls break ties.
+
+Pass all three levels of a tier and the same run climbs automatically (a "ladder"). The run stops at the first tier that is not fully passed. Every seed is first proven passable by a full-knowledge solver (`approveLevel`) through the real simulation. Every run is deterministic and replayable.
+
+## Modes
+
+| Mode | What it trains | Shape |
+|---|---|---|
+| **Red Floor** | Constraints. A goal is not enough — the charter must name what is forbidden. | Deadly tiles; later tiers add planks, keys, levers, crates; vision shrinks on tier 3. |
+| **Keymaster** | Dependencies. Discover a blocked exit, find the key, return, then continue. | One learning level, three hidden 16×16 maps. Key → door → altar. |
+| **Maze** | Exploration under fog of war. | Perfect labyrinth on tier 1; later tiers add loops and a smaller vision window. |
+| **Tower Defense** | Read the opponent's rules, then write a counter-policy. | Deterministic enemy charter is shown *before* you write yours. Limited towers. |
+
+Playable entry points: `play.html#red`, `play.html#key`. All four modes: `play.html#all`. Restore a live run: `play.html#run/<runId>`.
+
+Prompt budget grows with tier (200 / 300 / 400 characters). Keymaster is a single 400-character level, not a three-tier ladder.
 
 ## Stack
 
@@ -19,6 +28,8 @@ Modes: **Maze** (fog-of-war pathfinding), **Red Floor** (deadly tiles, planks, k
 | Runner | `src/runner` → `convex/_runner/bundle.ts` | single-file bundle executed inside a **Daytona** sandbox |
 | Backend | `convex/` | **Convex**: sessions, runs, frames, decisions; `launch` action dispatches to Daytona (or runs in-process) |
 | Website + game | `app/` | Five-page Vite site, React game, Canvas 2D sprites, live Convex runs and replay |
+
+Requires Node.js 22+.
 
 ## Website
 
@@ -38,11 +49,13 @@ Set these in the Convex dashboard (Settings → Environment Variables): `XAI_API
 and optionally `DAYTONA_API_KEY`, `DAYTONA_API_URL`, `DAYTONA_TARGET`. Without a Daytona key the run executes inside the
 Convex action (same code, same results).
 
-Without `VITE_CONVEX_URL` the UI starts in **mock mode** with a scripted run, so the screens can be demoed offline.
+Without `VITE_CONVEX_URL` the UI starts in **mock mode** with a scripted run, so the screens can be demoed offline. The demo does **not** evaluate the typed charter.
+
+Live Convex play requires sign-in. Public sign-up is disabled.
 
 ## Auth administration
 
-Public sign-up is disabled. Register an account through the authenticated Convex CLI:
+Register an account through the authenticated Convex CLI:
 
 ```bash
 npm run auth:register:dev -- person@example.com
@@ -80,15 +93,20 @@ The standard generated Convex interfaces are committed so a fresh checkout can b
 npx tsx scripts/run-local.ts --mode redfloor --tier 1 --charter "Reach the altar. Never step on red tiles."
 npx tsx scripts/run-local.ts --mode maze --tier 2 --fake                     # scripted explorer instead of the LLM
 npx tsx scripts/run-local.ts --mode towerdefense --tier 1 --out app/public/demo/td.json
+npx tsx scripts/run-local.ts --mode keymaster --tier 1 --charter "Find the key, open the door, then go to the altar."
 ```
 
-Pre-recorded tier-1 replays for all modes live in `app/public/demo/` (demo fallback).
+Pre-recorded tier-1 (and later) replays for maze, red floor, and tower defense live in `app/public/demo/` (demo fallback).
 
 ## Tests
 
 ```bash
-npm test
+npm test                  # vitest: engine, runtime, scoring
+npm run check:site        # static page/asset checks
+npm run test:browser      # playwright, after `npx playwright install chromium`
 ```
+
+CI (`.github/workflows/checks.yml`) also builds the demo under `/prompt_tutor/` and runs the browser suite.
 
 ## Layout of a run
 
@@ -100,6 +118,4 @@ charter → runs.create → launch (Daytona sandbox | in-process) for the curren
    → 3/3 and tiers left? schedule launch again for tier+1 (new sandbox) : finish the run
 ```
 
-See `docs/plans/2026-09-12-golem-mvp.md` for decisions and `docs/ASSETS.md` for the asset request list.
-
-See [Keymaster implementation and testing](docs/KEYMASTER.md) for the new second learning level.
+See `docs/plans/2026-09-12-golem-mvp.md` for design decisions, `docs/ASSETS.md` for the asset request list, and [Keymaster implementation and testing](docs/KEYMASTER.md) for the second learning level.
