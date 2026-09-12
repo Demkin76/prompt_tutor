@@ -67,7 +67,7 @@ export function generateTowerDefense(spec: LevelSpec): WorldState {
   set(golemPos, "floor");
 
   const baseHp = spec.env.params.baseHp ?? 3;
-  const entities: Entity[] = [makeEntity("base", "base", base, { hp: baseHp })];
+  const entities: Entity[] = [makeEntity("base", "base", base, { hp: baseHp, hpMax: baseHp })];
 
   // Sanity: the path is recoverable by BFS over path/spawn/base tiles.
   const recovered = bfs(size, (q) => isPathTile(tileAt({ size, tiles }, q)), spawn, base);

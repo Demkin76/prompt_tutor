@@ -783,3 +783,42 @@ ul.rules li {
     grid-template-columns: 1fr;
   }
 }
+
+/* ───────── sliced atlas assets ───────── */
+.topbar .logo {
+  height: 40px;
+  image-rendering: pixelated;
+  cursor: pointer;
+}
+.hero-logo {
+  height: 96px;
+  image-rendering: pixelated;
+  display: block;
+  margin: 0 auto 8px;
+}
+.hero-mascot {
+  height: 64px;
+  image-rendering: pixelated;
+  display: block;
+  margin: 8px auto 0;
+}
+.status {
+  position: relative;
+}
+.status .mascot {
+  position: absolute;
+  right: 14px;
+  top: 12px;
+  height: 56px;
+  image-rendering: pixelated;
+}
+.icon {
+  height: 14px;
+  vertical-align: -2px;
+  image-rendering: pixelated;
+}
+.topbar {
+  background-image: linear-gradient(rgba(10, 10, 14, 0.55), rgba(10, 10, 14, 0.75)), url("/assets/bg.dungeon_wall.png");
+  background-size: auto 100%;
+  background-repeat: repeat-x;
+}
