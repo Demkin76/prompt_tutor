@@ -4,7 +4,7 @@ import { internalAction, type ActionCtx } from "./_generated/server";
 import { api, internal } from "./_generated/api";
 import { v } from "convex/values";
 import { RUNNER_SOURCE } from "./_runner/bundle";
-import type { LevelSpec, ModeId, RunnerMessage, Sink } from "../src/core/types";
+import type { LevelSpec, ModeId, RunSettings, RunnerMessage, Sink } from "../src/core/types";
 
 /** Convex actions are capped at 10 minutes; leave headroom for sandbox setup/teardown. */
 const RUNNER_TIMEOUT_SECONDS = 540;
@@ -46,7 +46,7 @@ export const run = internalAction({
   },
 });
 
-type RunDoc = { runId: string; mode: string; tier: number; currentTier?: number; charter: string };
+type RunDoc = { runId: string; mode: string; tier: number; currentTier?: number; charter: string; settings?: RunSettings };
 
 async function runInDaytona(ctx: ActionCtx, apiKey: string, runDoc: RunDoc): Promise<void> {
   const { Daytona } = await import("@daytonaio/sdk");
@@ -64,6 +64,7 @@ async function runInDaytona(ctx: ActionCtx, apiKey: string, runDoc: RunDoc): Pro
     CHARTER: runDoc.charter,
     XAI_API_KEY: xaiKey,
   };
+  if (runDoc.settings) envVars.SETTINGS = JSON.stringify(runDoc.settings);
   if (process.env.XAI_MODEL) envVars.XAI_MODEL = process.env.XAI_MODEL;
 
   const daytona = new Daytona({
@@ -126,7 +127,7 @@ async function runInProcess(ctx: ActionCtx, runDoc: RunDoc): Promise<void> {
   // Fresh hidden seeds per run, each proven passable by the full-knowledge solver.
   const rng = createRng((Date.now() ^ Math.floor(Math.random() * 0x7fffffff)) >>> 0);
   const pickSeed = (spec: LevelSpec) => pickApprovedSeed(spec, rng).seed;
-  const summary = await runTier({ runId: runDoc.runId, tier, charter: runDoc.charter, llm, sink, pickSeed });
+  const summary = await runTier({ runId: runDoc.runId, tier, charter: runDoc.charter, llm, sink, pickSeed, settings: runDoc.settings });
   console.log(`launch.run(${runDoc.runId}): in-process finished, passed ${summary.passedLevels}/${summary.totalLevels}, score ${summary.score}`);
 
   // runTier is expected to push run_end itself; make sure the run doesn't stay "running" if it didn't.

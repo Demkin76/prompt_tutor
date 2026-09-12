@@ -871,3 +871,197 @@ ul.rules li {
   font-size: 15px;
   padding: 2px 0;
 }
+
+/* ───────────── Rune Trading: chart, indicators, market rows ───────────── */
+.trade-stage {
+  background:
+    linear-gradient(rgba(8, 12, 18, 0.55), rgba(8, 12, 18, 0.78)),
+    var(--trade-bg, none) center top / cover no-repeat,
+    var(--stone-800);
+}
+
+.market-chart {
+  width: 100%;
+  border: 3px solid #765a28;
+  background: #101722;
+  box-shadow: 0 0 0 2px #0a0c10, 0 0 20px rgba(230, 184, 74, 0.18);
+}
+
+.market-chart-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 12px;
+  color: var(--gold);
+  background: #171d28;
+  border-bottom: 2px solid #3b4659;
+  font-family: var(--font-head);
+  font-size: 9px;
+}
+
+.market-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.market-pane text,
+.market-legend text {
+  font-family: var(--font-head);
+}
+
+.market-hidden {
+  width: 100%;
+  min-height: 260px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 12px;
+  border: 3px solid #765a28;
+  background: #101722;
+  color: var(--parch-300);
+  font-family: var(--font-head);
+  font-size: 9px;
+}
+
+.market-hidden img {
+  width: 128px;
+  image-rendering: pixelated;
+  opacity: 0.6;
+}
+
+.stage .banner .banner-rune {
+  height: 28px;
+  vertical-align: middle;
+  margin-right: 10px;
+  image-rendering: pixelated;
+}
+
+.indicator-settings h2 {
+  margin-bottom: 4px;
+}
+
+.indicator-settings .hint {
+  font-size: 15px;
+  color: var(--parch-ink-soft);
+  margin: 0 0 8px;
+}
+
+.indicator-settings.locked .indicator-fields input {
+  opacity: 0.7;
+}
+
+.indicator-row {
+  padding: 8px 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  opacity: 0.6;
+}
+
+.indicator-row.enabled {
+  opacity: 1;
+}
+
+.indicator-row > label,
+.indicator-fields,
+.indicator-fields label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.indicator-row > label {
+  cursor: pointer;
+}
+
+.indicator-row > label img {
+  width: 24px;
+  height: 24px;
+  image-rendering: pixelated;
+}
+
+.indicator-row .swatch {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #2a1c0c;
+  margin-left: auto;
+}
+
+.indicator-fields {
+  margin: 6px 0 0 27px;
+  flex-wrap: wrap;
+  color: var(--parch-ink-soft);
+  font-size: 16px;
+}
+
+.indicator-fields input {
+  width: 58px;
+  padding: 3px 5px;
+  color: var(--parch-100);
+  background: #0d1119;
+  border: 1px solid var(--stone-500);
+}
+
+.profit {
+  color: #58df78;
+}
+
+.loss {
+  color: #ff6658;
+}
+
+.panel:not(.dark) .profit {
+  color: var(--green-700);
+}
+
+.panel:not(.dark) .loss {
+  color: var(--red-700);
+}
+
+.result-rune {
+  float: right;
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  image-rendering: pixelated;
+}
+
+.market-outcome {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 4px 0 8px;
+  font-family: var(--font-head);
+}
+
+.market-outcome .label {
+  font-size: 9px;
+  color: var(--parch-ink-soft);
+}
+
+.market-outcome .value {
+  font-size: 18px;
+}
+
+.market-outcome .pct {
+  font-size: 10px;
+  opacity: 0.8;
+}
+
+.summary .market-total.profit {
+  color: #58df78;
+}
+
+.summary .market-total.loss {
+  color: #ff6658;
+}
+
+.legend-trade {
+  grid-template-columns: 1fr;
+}
+
+.legend .legend-icon {
+  width: 24px;
+  height: 24px;
+  image-rendering: pixelated;
+  flex: 0 0 auto;
+}

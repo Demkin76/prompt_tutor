@@ -1,6 +1,6 @@
 import type { ModeId } from "@core/types";
 
-const aliases: Record<string, ModeId> = { red: "redfloor", redfloor: "redfloor", maze: "maze", };
+const aliases: Record<string, ModeId> = { red: "redfloor", redfloor: "redfloor", maze: "maze", rune: "runetrading", runetrading: "runetrading" };
 export function readLaunchLink(hash: string): { mode: ModeId | null; runId?: string } {
   const value = hash.replace(/^#/, "");
   if (value.startsWith("run/")) {
@@ -11,5 +11,5 @@ export function readLaunchLink(hash: string): { mode: ModeId | null; runId?: str
   return { mode: aliases[value] ?? "redfloor" };
 }
 export function modeHash(mode: ModeId): string {
-  return mode === "redfloor" ? "#red" : `#${mode}`;
+  return mode === "redfloor" ? "#red" : mode === "runetrading" ? "#rune" : `#${mode}`;
 }

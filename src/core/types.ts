@@ -16,7 +16,87 @@ export const DIR_DELTA: Record<Dir, Vec> = {
 };
 
 // ───────────────────────── Modes & tiles ─────────────────────────
-export type ModeId = "maze" | "redfloor" | "towerdefense";
+export type ModeId = "maze" | "redfloor" | "towerdefense" | "runetrading";
+
+export type ChartClass = "bull" | "bear" | "flat" | "double-bottom";
+
+export interface Ohlc {
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+}
+
+export type IndicatorId = "sma" | "ema" | "rsi" | "macd" | "bollinger" | "atr";
+
+export interface IndicatorConfig {
+  id: IndicatorId;
+  enabled: boolean;
+  period?: number;
+  fastPeriod?: number;
+  slowPeriod?: number;
+  signalPeriod?: number;
+  deviations?: number;
+  color?: string;
+}
+
+export interface RunSettings {
+  indicators: IndicatorConfig[];
+}
+
+export type TradeActionType = "long" | "short" | "close" | "hold";
+
+export type MarketMetricName =
+  | "price.close"
+  | "price.return"
+  | "candle.bodyRatio"
+  | "sma"
+  | "ema"
+  | "rsi"
+  | "atr"
+  | "macd.line"
+  | "macd.signal"
+  | "macd.histogram"
+  | "bollinger.upper"
+  | "bollinger.middle"
+  | "bollinger.lower";
+
+export type MarketOperand =
+  | { kind: "metric"; name: MarketMetricName; offset?: number }
+  | { kind: "number"; value: number };
+
+export type MarketCondition =
+  | { op: "gt" | "gte" | "lt" | "lte"; left: MarketOperand; right: MarketOperand }
+  | { op: "crossesAbove" | "crossesBelow"; left: Extract<MarketOperand, { kind: "metric" }>; right: Extract<MarketOperand, { kind: "metric" }> }
+  | { op: "and" | "or"; conditions: MarketCondition[] }
+  | { op: "not"; condition: MarketCondition };
+
+export interface MarketStrategy {
+  version: 1;
+  rules: { when: MarketCondition; action: TradeActionType }[];
+  fallback: "hold";
+}
+
+export interface MarketPosition {
+  side: "long" | "short";
+  entryPrice: number;
+  quantity: number;
+}
+
+export interface MarketState {
+  chartClass: ChartClass;
+  candles: Ohlc[];
+  candleIndex: number;
+  candlesTotal: number;
+  startingBalance: number;
+  balance: number;
+  position: MarketPosition | null;
+  realizedPnl: number;
+  unrealizedPnl: number;
+  feesPaid: number;
+  finalPnl: number | null;
+  status: "running" | "won" | "lost";
+}
 
 /** Static tile layer. Entities (items, doors, towers, enemies) live in `entities`, not here. */
 export type TileType =
@@ -31,7 +111,8 @@ export type TileType =
   | "base"; // towerdefense: what enemies attack
 
 export type EntityKind =
-  | "golem"
+  | "fly"
+  | "golem" // legacy replay compatibility
   | "plank" // pickable; agent carries at most `maxCarry` planks
   | "key" // pickable; opens a door
   | "door" // props.locked: boolean; props.open: boolean
@@ -41,7 +122,18 @@ export type EntityKind =
   | "enemy" // towerdefense; props.enemyType, props.hp, props.speed, props.pathIndex
   | "base";
 
-export type AnimationState = "idle" | "walk" | "interact" | "fail" | "success";
+export type AnimationState =
+  | "idle"
+  | "walk"
+  | "interact"
+  | "fail"
+  | "success"
+  | "think"
+  | "cast"
+  | "buy"
+  | "sell"
+  | "profit"
+  | "loss";
 
 export interface Visual {
   assetKey: string; // e.g. "unit.golem", "tile.hazard", "item.plank" — resolved by the renderer, never a file path
@@ -82,6 +174,7 @@ export interface WorldState {
   entities: Entity[];
   agent: AgentState;
   td?: TowerDefenseState; // present only in towerdefense
+  market?: MarketState; // present only in rune trading
   status: "running" | "won" | "lost" | "out_of_budget";
   rngState: number; // deterministic PRNG state carried across steps
   /** Tile indices the agent has ever seen, for the renderer's fog memory. */
@@ -98,7 +191,8 @@ export type ActionType =
   | "place" // places a carried plank on the adjacent tile in `dir` (only meaningful on hazard)
   | "say"
   | "place_tower" // towerdefense
-  | "start_wave"; // towerdefense
+  | "start_wave" // towerdefense
+  | TradeActionType;
 
 export type Action =
   | { type: "move"; args: { dir: Dir } }
@@ -109,7 +203,8 @@ export type Action =
   | { type: "place"; args: { dir: Dir } }
   | { type: "say"; args: { text: string } }
   | { type: "place_tower"; args: { pos: Vec; towerType: string } }
-  | { type: "start_wave"; args?: Record<string, never> };
+  | { type: "start_wave"; args?: Record<string, never> }
+  | { type: TradeActionType; args?: Record<string, never> };
 
 // ───────────────────────── Events (sim output, verifier input) ─────────────────────────
 export type SimEventType =
@@ -143,6 +238,13 @@ export type SimEventType =
   | "wave_ended"
   | "base_destroyed"
   | "all_waves_cleared"
+  | "position_opened"
+  | "position_closed"
+  | "fee_charged"
+  | "candle_revealed"
+  | "forced_close"
+  | "market_complete"
+  | "liquidated"
   | "budget_exhausted";
 
 export interface SimEvent {
@@ -181,7 +283,7 @@ export interface TowerTypeSpec {
 
 export interface EnvSpec {
   size: Vec;
-  generator: "maze" | "redfloor" | "towerdefense";
+  generator: "maze" | "redfloor" | "towerdefense" | "runetrading";
   params: {
     hazardDensity?: number; // redfloor
     planks?: number; // redfloor: planks scattered
@@ -195,6 +297,11 @@ export interface EnvSpec {
     towerTypes?: TowerTypeSpec[];
     towerLimit?: number;
     baseHp?: number;
+    chartClass?: ChartClass;
+    candleCount?: number;
+    feeBps?: number;
+    startingBalance?: number;
+    indicators?: IndicatorConfig[];
   };
 }
 
@@ -215,6 +322,8 @@ export interface LevelSpec {
   opponent?: OpponentSpec; // towerdefense only
   scoring: { completion: number; perTick: number; perChar: number; perLlmCall: number };
   seed: number; // fixed per level (hidden from player until deploy)
+  /** Full reference series exposed before deploy for rune-trading level 1 only. */
+  trainingPreview?: Ohlc[];
 }
 
 export interface TierSpec {
@@ -262,6 +371,17 @@ export interface Observation {
   knownMap?: string;
   memory: AgentMemory;
   td?: TowerDefenseState & { buildableSlots: Vec[]; towerTypes: TowerTypeSpec[]; opponentCharter: string };
+  market?: {
+    candleIndex: number;
+    candlesTotal: number;
+    candles: Ohlc[];
+    indicators: Record<string, (number | null)[]>;
+    position: MarketPosition | null;
+    balance: number;
+    unrealizedPnl: number;
+    realizedPnl: number;
+    feesPaid: number;
+  };
   budget: { ticksLeft: number; callsLeft: number };
 }
 
@@ -296,6 +416,7 @@ export interface DecisionRecord {
   plan: Action[];
   stopOn: StopOn[];
   latencyMs: number;
+  source?: "agent" | "compiler" | "strategy";
   error?: string; // schema failure / timeout -> runtime fell back to `wait`
 }
 

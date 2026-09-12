@@ -16,7 +16,7 @@ type Route =
   | { s: "result"; runId: string; mode: ModeId; tier: number; charter: string; attempts: number }
   | { s: "replay"; runId: string; levelId: string; mode: ModeId; tier: number; charter: string; attempts: number };
 
-const MODE_TITLE: Record<ModeId, string> = { maze: "Maze", redfloor: "Red Floor", towerdefense: "Tower Defense" };
+const MODE_TITLE: Record<ModeId, string> = { maze: "Maze", redfloor: "Red Floor", towerdefense: "Tower Defense", runetrading: "Rune Trading" };
 
 function RestoreRun({ runId, onRestore, onHome }: { runId: string; onRestore: (run: NonNullable<ReturnType<typeof golemApi.useRun>>) => void; onHome: () => void }) {
   const run = golemApi.useRun(runId);
@@ -70,6 +70,7 @@ export function App({ onSignOut }: { onSignOut?: () => void }) {
         <div><div className="facility-kicker">THE TESTING FACILITY / {route.s === "home" ? "SELECT A WORLD" : crumbs.join(" / ")}</div><h1>Write the law. <span>Observe the outcome.</span></h1></div>
         <div className="mode-tabs" aria-label="Game modes">
           <button className={route.s !== "home" && route.mode === "redfloor" ? "active" : ""} disabled={route.s === "run" || !!resumeId} onClick={() => setRoute({ s: "level", mode: "redfloor", tier: 1, charter: loadCharter("redfloor", 1), attempts: 0 })}>01 / Red Floor</button>
+          <button className={route.s !== "home" && route.mode === "runetrading" ? "active" : ""} disabled={route.s === "run" || !!resumeId} onClick={() => setRoute({ s: "level", mode: "runetrading", tier: 1, charter: loadCharter("runetrading", 1), attempts: 0 })}>02 / Rune Trading</button>
           <button disabled={route.s === "run" || !!resumeId} onClick={() => setRoute({ s: "home" })}>All modes ↗</button>
           {onSignOut && <button type="button" onClick={onSignOut}>Sign out</button>}
         </div>

@@ -18,14 +18,41 @@ export function countEvents(events: SimEvent[], type: SimEventType): number {
  * Deterministic verdict from the trace and final state.
  *   nav modes: passed iff goal_reached happened and hazard_entered never did.
  *   towerdefense: passed iff all_waves_cleared happened and baseHp > 0.
+ *   runetrading: passed iff the series finished with net P&L > 0 after fees.
  * `score` is a 0..1 quality figure: 1 on pass; on fail, partial credit for
- * progress (waves survived) so the UI can show "how close".
+ * progress (waves survived) so the UI can show "how close". Rune trading scales
+ * the pass score with the return (5% of the starting balance = 1).
  */
-export function verify(spec: LevelSpec, _initialState: WorldState, finalState: WorldState, events: SimEvent[]): Verdict {
+export function verify(spec: LevelSpec, initialState: WorldState, finalState: WorldState, events: SimEvent[]): Verdict {
   const reasons: string[] = [];
   const evidence: Evidence[] = [];
   let passed = false;
   let score = 0;
+
+  if (spec.mode === "runetrading") {
+    // Passed iff the series was finished (status won) with strictly positive net P&L after fees.
+    const market = finalState.market;
+    const finalPnl = market?.finalPnl ?? (market ? market.balance - market.startingBalance : 0);
+    passed = finalState.status === "won" && finalPnl > 0;
+    if (passed) reasons.push(`Finished with positive net P&L ${finalPnl.toFixed(2)} after fees.`);
+    else if (eventually(events, "liquidated")) reasons.push("Position liquidated: balance fell to zero.");
+    else if (finalState.status === "out_of_budget" || (market && market.status === "running")) reasons.push(`Series not completed (${market?.candleIndex ?? 0}/${market?.candlesTotal ?? 0} candles).`);
+    else reasons.push(`Net P&L ${finalPnl.toFixed(2)} is not positive after fees.`);
+    evidence.push({
+      type: "state",
+      value: {
+        startingBalance: initialState.market?.startingBalance ?? 0,
+        finalBalance: market?.balance ?? 0,
+        finalPnl,
+        feesPaid: market?.feesPaid ?? 0,
+        candles: market?.candleIndex ?? 0,
+      },
+      note: "rune trading result",
+    });
+    const denominator = Math.max(1, initialState.market?.startingBalance ?? 1);
+    score = passed ? Math.max(0.1, Math.min(1, finalPnl / denominator / 0.05)) : 0;
+    return { passed, score, confidence: 1, reasons, evidence };
+  }
 
   if (spec.mode === "towerdefense") {
     const cleared = eventually(events, "all_waves_cleared");

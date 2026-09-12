@@ -31,6 +31,6 @@ export default defineConfig(({ mode, command }) => {
     outDir: "../dist", emptyOutDir: true,
     rollupOptions: { input: Object.fromEntries(["index", "levels", "technology", "world", "play"].map(page => [page, path.resolve(__dirname, `app/${page}.html`)])) },
   },
-  test: { include: ["src/**/*.test.ts", "convex/**/*.test.ts"], root: "." },
+  test: { include: ["src/**/*.test.ts", "app/src/**/*.test.ts", "convex/**/*.test.ts"], root: "." },
   };
 });

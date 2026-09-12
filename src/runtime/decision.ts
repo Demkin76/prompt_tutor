@@ -78,6 +78,11 @@ function validateAction(raw: unknown, idx: number, spec: LevelSpec): Action {
       return { type: "pickup" };
     case "start_wave":
       return { type: "start_wave" };
+    case "long":
+    case "short":
+    case "close":
+    case "hold":
+      return { type: t };
     case "say": {
       const text = args.text;
       if (typeof text !== "string" || text.trim().length === 0) {

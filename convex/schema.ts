@@ -11,6 +11,32 @@ export const runStatus = v.union(
 
 export const runHost = v.union(v.literal("daytona"), v.literal("inprocess"));
 
+export const indicatorId = v.union(
+  v.literal("sma"),
+  v.literal("ema"),
+  v.literal("rsi"),
+  v.literal("macd"),
+  v.literal("bollinger"),
+  v.literal("atr"),
+);
+
+/** IndicatorConfig (src/core/types.ts) */
+export const indicatorConfig = v.object({
+  id: indicatorId,
+  enabled: v.boolean(),
+  period: v.optional(v.number()),
+  fastPeriod: v.optional(v.number()),
+  slowPeriod: v.optional(v.number()),
+  signalPeriod: v.optional(v.number()),
+  deviations: v.optional(v.number()),
+  color: v.optional(v.string()),
+});
+
+/** RunSettings (src/core/types.ts) — rune trading indicator set, frozen per run. */
+export const runSettings = v.object({
+  indicators: v.array(indicatorConfig),
+});
+
 export default defineSchema({
   ...authTables,
 
@@ -38,6 +64,8 @@ export default defineSchema({
     /** TierResult[] — one entry per tier played so far. */
     ladder: v.optional(v.any()),
     charter: v.string(),
+    /** Immutable per-run indicator configuration (rune trading). */
+    settings: v.optional(runSettings),
     status: runStatus,
     host: runHost,
     /** RunSummary */

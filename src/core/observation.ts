@@ -12,6 +12,7 @@ import type {
   WorldState,
 } from "./types";
 import { chebyshev, idx, inBounds, manhattan, neighbors, tileAt } from "./grid";
+import { computeIndicators } from "./indicators";
 
 export const ASCII_LEGEND = [
   "# wall  . floor  R red hazard (deadly)  = bridge (safe)  A altar (goal)",
@@ -35,6 +36,7 @@ const TILE_CHAR: Record<TileType, string> = {
 function entityChar(e: Entity): string {
   switch (e.kind) {
     case "golem":
+    case "fly":
       return "@";
     case "plank":
       return "p";
@@ -63,17 +65,21 @@ export function objectiveFor(spec: LevelSpec): string {
       return "Reach the altar (A) without ever stepping on red hazard (R). Planks (p) placed on hazard turn it into a safe bridge (=).";
     case "towerdefense":
       return "Place towers on buildable slots (_) then start waves. Survive every wave with base HP > 0.";
+    case "runetrading":
+      return "Apply the compiled indicator strategy one candle at a time and finish with positive net P&L after fees.";
   }
 }
 
 /** Entities inside the Chebyshev radius, excluding the golem itself. */
 export function visibleEntities(spec: LevelSpec, state: WorldState): Entity[] {
+  if (spec.mode === "runetrading") return [];
   if (spec.mode === "towerdefense") return state.entities.filter((e) => e.kind !== "golem");
   const r = spec.observation.radius;
   return state.entities.filter((e) => e.kind !== "golem" && chebyshev(e.pos, state.agent.pos) <= r);
 }
 
 export function visibleTiles(spec: LevelSpec, state: WorldState): VisibleTile[] {
+  if (spec.mode === "runetrading") return [];
   const out: VisibleTile[] = [];
   const full = spec.mode === "towerdefense";
   const r = spec.observation.radius;
@@ -95,6 +101,7 @@ export function visibleTiles(spec: LevelSpec, state: WorldState): VisibleTile[] 
  * grid. Tower defense: the whole arena (the golem never moves there).
  */
 export function asciiView(spec: LevelSpec, state: WorldState): string {
+  if (spec.mode === "runetrading") return "";
   const full = spec.mode === "towerdefense";
   const r = spec.observation.radius;
   const c = state.agent.pos;
@@ -127,6 +134,7 @@ export function asciiView(spec: LevelSpec, state: WorldState): string {
 
 /** Whole-level ASCII map of everything the agent has ever seen (`?` = never seen). Entities shown only where currently visible. */
 export function knownMapView(spec: LevelSpec, state: WorldState): string {
+  if (spec.mode === "runetrading") return "";
   const [w, h] = state.size;
   const seen = new Set(state.seen);
   const r = spec.observation.radius;
@@ -186,6 +194,20 @@ export function buildObservation(
       buildableSlots,
       towerTypes: spec.env.params.towerTypes ?? [],
       opponentCharter: spec.opponent?.charter ?? "",
+    };
+  }
+  if (spec.mode === "runetrading" && state.market) {
+    // Only revealed candles; indicators are aligned to them, so no future data can leak.
+    obs.market = {
+      candleIndex: state.market.candleIndex,
+      candlesTotal: state.market.candlesTotal,
+      candles: state.market.candles.map((candle) => ({ ...candle })),
+      indicators: computeIndicators(state.market.candles, spec.env.params.indicators ?? []),
+      position: state.market.position ? { ...state.market.position } : null,
+      balance: state.market.balance,
+      unrealizedPnl: state.market.unrealizedPnl,
+      realizedPnl: state.market.realizedPnl,
+      feesPaid: state.market.feesPaid,
     };
   }
   return obs;
@@ -248,6 +270,20 @@ export function describeEvent(e: SimEvent): string {
       return `${t} base destroyed`;
     case "all_waves_cleared":
       return `${t} all waves cleared`;
+    case "position_opened":
+      return `${t} opened ${d.side} at ${Number(d.price ?? 0).toFixed(2)}`;
+    case "position_closed":
+      return `${t} closed ${d.side} for ${Number(d.pnl ?? 0).toFixed(2)}`;
+    case "fee_charged":
+      return `${t} paid fee ${Number(d.fee ?? 0).toFixed(2)}`;
+    case "candle_revealed":
+      return `${t} candle ${d.candleIndex} closed at ${Number(d.close ?? 0).toFixed(2)}`;
+    case "forced_close":
+      return `${t} final position force-closed`;
+    case "market_complete":
+      return `${t} market complete: ${Number(d.finalPnl ?? 0).toFixed(2)} net P&L`;
+    case "liquidated":
+      return `${t} position liquidated`;
     case "budget_exhausted":
       return `${t} tick budget exhausted`;
     case "enemy_spawned":
@@ -323,6 +359,7 @@ export function updateMemory(memory: AgentMemory, spec: LevelSpec, state: WorldS
  * `plan_done` is decided by the runtime, never here.
  */
 export function detectTriggers(spec: LevelSpec, prev: WorldState, next: WorldState, events: SimEvent[]): StopOn[] {
+  if (spec.mode === "runetrading") return [];
   const fired: StopOn[] = [];
   const prevEnts = new Set(visibleEntities(spec, prev).map((e) => e.id));
   const nextEnts = visibleEntities(spec, next);

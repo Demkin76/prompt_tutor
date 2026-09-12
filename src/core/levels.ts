@@ -1,12 +1,16 @@
-import type { ActionType, LevelSpec, ModeId, OpponentSpec, TierSpec, TowerTypeSpec } from "./types";
+import type { ActionType, ChartClass, LevelSpec, ModeId, OpponentSpec, TierSpec, TowerTypeSpec } from "./types";
+import { DEFAULT_CANDLE_COUNT, DEFAULT_FEE_BPS, DEFAULT_STARTING_BALANCE, generateMarketSeries } from "./generators/market";
+import { DEFAULT_MARKET_INDICATORS } from "./runSettings";
 
 export const MODES: { id: ModeId; title: string; tagline: string }[] = [
   { id: "maze", title: "Maze", tagline: "Find the altar in a labyrinth with limited vision." },
   { id: "redfloor", title: "Red Floor", tagline: "The floor is lava. Planks, keys and levers are your friends." },
+  { id: "runetrading", title: "Rune Trading", tagline: "Teach the golem a reusable indicator strategy, then face unseen markets." },
 ];
 
 const NAV_ACTIONS: ActionType[] = ["move", "wait", "pickup", "place", "interact", "say"];
 const TD_ACTIONS: ActionType[] = ["place_tower", "start_wave", "wait", "say"];
+const MARKET_ACTIONS: ActionType[] = ["long", "short", "close", "hold"];
 
 const PROMPT_BUDGET = [0, 200, 300, 400];
 const LIMITS = [
@@ -16,6 +20,10 @@ const LIMITS = [
   { ticks: 200, llmCalls: 40, wallClockMs: 180000 },
 ];
 const SCORING = { completion: 100, perTick: -0.5, perChar: -0.05, perLlmCall: -1 };
+/** Rune trading: one candle per tick, one LLM call (the charter is compiled once per level). */
+const MARKET_PROMPT_BUDGET = [0, 250, 300, 350, 400];
+const MARKET_LIMITS = { ticks: DEFAULT_CANDLE_COUNT, llmCalls: 1, wallClockMs: 90000 };
+const MARKET_SCORING = { completion: 100, perTick: 0, perChar: -0.02, perLlmCall: -1 };
 
 const TOWER_TYPES: Record<string, TowerTypeSpec> = {
   archer: { id: "archer", range: 3, damage: 1, label: "Archer (range 3, 1 dmg)" },
@@ -50,17 +58,66 @@ function makeLevel(
     title,
     brief,
     playerKnows,
-    agentKnows: [...GOLEM_FACTS, ...agentKnows],
-    promptBudget: PROMPT_BUDGET[tier],
+    agentKnows: [...(mode === "runetrading" ? [] : GOLEM_FACTS), ...agentKnows],
+    promptBudget: mode === "runetrading" ? MARKET_PROMPT_BUDGET[tier] : PROMPT_BUDGET[tier],
     env,
     observation,
-    limits: LIMITS[tier]!,
-    actions: mode === "towerdefense" ? TD_ACTIONS : NAV_ACTIONS,
-    scoring: SCORING,
+    limits: mode === "runetrading" ? MARKET_LIMITS : LIMITS[tier]!,
+    actions: mode === "towerdefense" ? TD_ACTIONS : mode === "runetrading" ? MARKET_ACTIONS : NAV_ACTIONS,
+    scoring: mode === "runetrading" ? MARKET_SCORING : SCORING,
     seed,
   };
   if (opponent) spec.opponent = opponent;
   return spec;
+}
+
+// ───────────────────────── Rune Trading ─────────────────────────
+
+const MARKET_CLASSES: ChartClass[] = ["bull", "bear", "flat", "double-bottom"];
+const MARKET_TITLES = ["Emerald Ascent", "Crimson Descent", "Silent Range", "Runic Trousers"];
+const MARKET_KNOWS = [
+  "A complete reference chart is visible for level 1. Levels 2 and 3 use unseen charts with the same market regime.",
+  "One action is evaluated at each candle close. You may hold one long or short position without leverage.",
+  "Every open and close pays a 0.1% fee. Any remaining position is closed after the final candle.",
+  "Finish with net profit above zero. Absolute price thresholds are forbidden; use indicators and relative relationships.",
+];
+const MARKET_AGENT = [
+  "Apply the compiled strategy mechanically to each newly revealed candle.",
+  "Never use future candles. Only the revealed OHLC history and enabled indicators are available.",
+];
+
+function marketTier(tier: number): TierSpec {
+  const chartClass = MARKET_CLASSES[tier - 1];
+  const levels = [1, 2, 3].map((index) => {
+    const seed = 44000 + tier * 100 + index * 7;
+    const spec = makeLevel(
+      "runetrading",
+      tier,
+      index,
+      seed,
+      index === 1 ? `${MARKET_TITLES[tier - 1]} — Reference` : `${MARKET_TITLES[tier - 1]} — Trial ${index - 1}`,
+      `Trade ${DEFAULT_CANDLE_COUNT} candles from a fictional pair with a ${chartClass} regime and finish above the starting balance after fees.`,
+      MARKET_KNOWS,
+      MARKET_AGENT,
+      {
+        size: [1, 1],
+        generator: "runetrading",
+        params: {
+          chartClass,
+          candleCount: DEFAULT_CANDLE_COUNT,
+          feeBps: DEFAULT_FEE_BPS,
+          startingBalance: DEFAULT_STARTING_BALANCE,
+          indicators: DEFAULT_MARKET_INDICATORS.map((indicator) => ({ ...indicator })),
+          guarantee: ["valid_ohlc", "profitable_trade_exists"],
+        },
+      },
+      { radius: 0, memoryTicks: DEFAULT_CANDLE_COUNT },
+    );
+    // Level 1 is the public reference chart: its catalogue seed is never replaced, so the preview matches the run.
+    if (index === 1) spec.trainingPreview = generateMarketSeries({ seed, chartClass, candleCount: DEFAULT_CANDLE_COUNT });
+    return spec;
+  });
+  return { mode: "runetrading", tier, title: MARKET_TITLES[tier - 1], levels };
 }
 
 // ───────────────────────── Maze ─────────────────────────
@@ -315,6 +372,10 @@ export const TIERS: TierSpec[] = [
   redTier(1),
   redTier(2),
   redTier(3),
+  marketTier(1),
+  marketTier(2),
+  marketTier(3),
+  marketTier(4),
 ];
 
 /** Tower defense is not part of the product any more; its tiers stay only for the engine tests. */

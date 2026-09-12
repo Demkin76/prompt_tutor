@@ -1,8 +1,12 @@
 import { DIR_DELTA } from "./types";
-import type { Action, Dir, Entity, LevelSpec, SimEvent, SimEventType, StepResult, Vec, WorldState } from "./types";
+import type { Action, Dir, Entity, LevelSpec, SimEvent, SimEventType, StepResult, TradeActionType, Vec, WorldState } from "./types";
 import { addSeen, entitiesAt, entityAt, entityById, inBounds, isWalkable, samePos, tileAt } from "./grid";
 import { makeEntity } from "./generators/common";
+import { marketSeriesFor } from "./generators/market";
+import { stepMarket } from "./marketSim";
 import { runWave } from "./wave";
+
+const TRADE_ACTIONS: TradeActionType[] = ["long", "short", "close", "hold"];
 
 export function isTerminal(state: WorldState): boolean {
   return state.status !== "running";
@@ -14,6 +18,7 @@ export function isTerminal(state: WorldState): boolean {
  */
 export function step(spec: LevelSpec, state: WorldState, action: Action): StepResult {
   if (isTerminal(state)) return { state, events: [] };
+  if (spec.mode === "runetrading") return stepRuneTrading(spec, state, action);
 
   const next: WorldState = structuredClone(state);
   next.tick += 1;
@@ -68,6 +73,40 @@ export function step(spec: LevelSpec, state: WorldState, action: Action): StepRe
     emit("budget_exhausted", { ticks: next.tick });
   }
 
+  syncGolemVisual(next, events);
+  return { state: next, events };
+}
+
+/**
+ * Rune trading: every action (long / short / close / hold) is applied at the current candle close
+ * and advances exactly one candle; an action the level does not allow counts as `hold`.
+ * The market itself decides the terminal status (won / lost) when the series ends or on liquidation.
+ */
+function stepRuneTrading(spec: LevelSpec, input: WorldState, action: Action): StepResult {
+  const next: WorldState = structuredClone(input);
+  next.tick += 1;
+  if (!next.market) {
+    next.status = "lost";
+    return {
+      state: next,
+      events: [{ tick: next.tick, type: "invalid_action", data: { action: action.type, reason: "missing_market_state" } }],
+    };
+  }
+  const isTrade = (TRADE_ACTIONS as string[]).includes(action.type);
+  const isAllowed = isTrade && spec.actions.includes(action.type);
+  const selected: TradeActionType = isAllowed ? (action.type as TradeActionType) : "hold";
+  const series = marketSeriesFor(spec);
+  const nextCandle = next.market.candleIndex < series.length - 1 ? series[next.market.candleIndex + 1] : undefined;
+  const result = stepMarket(next.market, selected, nextCandle, spec.env.params.feeBps ?? 10);
+  next.market = result.state;
+  next.status = result.state.status;
+  const events: SimEvent[] = [];
+  if (!isAllowed) events.push({ tick: next.tick, type: "invalid_action", data: { action: action.type, reason: "action_not_allowed_in_level" } });
+  for (const event of result.events) events.push(event.data ? { tick: next.tick, type: event.type, data: event.data } : { tick: next.tick, type: event.type });
+  if (next.status === "running" && next.tick >= spec.limits.ticks) {
+    next.status = "out_of_budget";
+    events.push({ tick: next.tick, type: "budget_exhausted", data: { ticks: next.tick } });
+  }
   syncGolemVisual(next, events);
   return { state: next, events };
 }
@@ -206,9 +245,24 @@ function syncGolemVisual(s: WorldState, events: SimEvent[]): void {
   golem.visual.facing = s.agent.facing;
   if (!samePos(golem.pos, s.agent.pos)) golem.pos = s.agent.pos;
   const types = new Set(events.map((e) => e.type));
-  if (types.has("goal_reached") || types.has("all_waves_cleared")) golem.visual.animation = "success";
-  else if (types.has("hazard_entered") || types.has("base_destroyed") || s.status === "out_of_budget" || types.has("agent_stuck")) golem.visual.animation = "fail";
-  else if (types.has("moved")) golem.visual.animation = "walk";
+  if (types.has("goal_reached") || types.has("all_waves_cleared") || (types.has("market_complete") && s.status === "won")) golem.visual.animation = "success";
+  else if (
+    types.has("hazard_entered") ||
+    types.has("base_destroyed") ||
+    types.has("liquidated") ||
+    (types.has("market_complete") && s.status === "lost") ||
+    s.status === "out_of_budget" ||
+    types.has("agent_stuck")
+  )
+    golem.visual.animation = "fail";
+  else if (types.has("position_opened")) {
+    const opened = events.find((e) => e.type === "position_opened");
+    golem.visual.animation = opened?.data?.side === "short" ? "sell" : "buy";
+  } else if (types.has("position_closed")) {
+    const closed = events.find((e) => e.type === "position_closed");
+    const pnl = typeof closed?.data?.pnl === "number" ? closed.data.pnl : 0;
+    golem.visual.animation = pnl > 0 ? "profit" : pnl < 0 ? "loss" : "interact";
+  } else if (types.has("moved")) golem.visual.animation = "walk";
   else if (types.has("door_opened") || types.has("lever_pulled") || types.has("crate_pushed") || types.has("picked_up") || types.has("placed") || types.has("tower_placed")) golem.visual.animation = "interact";
   else golem.visual.animation = "idle";
 }

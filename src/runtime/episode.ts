@@ -13,10 +13,13 @@ import type {
   Action,
   AgentDecision,
   DecisionRecord,
+  IndicatorConfig,
   LevelRunResult,
   LevelSpec,
   LlmClient,
+  MarketStrategy,
   Replay,
+  RunSettings,
   RunSummary,
   SimEvent,
   Sink,
@@ -26,6 +29,9 @@ import type {
 import type { Engine } from "./engine";
 import { DecisionError, parseDecision } from "./decision";
 import { DECISION_JSON_SCHEMA, buildSystemPrompt, buildUserPrompt } from "./prompt";
+import { compileMarketStrategy } from "./marketCompiler";
+import { evaluateMarketStrategy } from "../core/marketStrategy";
+import { applyRunSettings } from "../core/runSettings";
 
 export interface RunLevelOptions {
   runId: string;
@@ -54,8 +60,13 @@ export interface RunTierOptions {
   engine?: Engine;
   now?: () => number;
   log?: (line: string) => void;
-  /** Replace each catalogue seed with a fresh one (e.g. pickApprovedSeed) so worlds differ per run. */
+  /**
+   * Replace each catalogue seed with a fresh one (e.g. pickApprovedSeed) so worlds differ per run.
+   * Rune trading keeps the catalogue seed of level 1 (its chart is the public reference).
+   */
   pickSeed?: (spec: LevelSpec) => number;
+  /** Rune trading: the player's indicator set, applied to every level of the tier. */
+  settings?: RunSettings;
 }
 
 let defaultEnginePromise: Promise<Engine> | undefined;
@@ -210,11 +221,116 @@ export async function runLevel(opts: RunLevelOptions): Promise<RunLevelOutput> {
   return { result, replay };
 }
 
+/**
+ * Rune trading: the charter is compiled ONCE per level (one LLM call), then every candle is
+ * decided deterministically by the strategy. Emits the same message sequence as runLevel;
+ * the compiler call is recorded as a `source: "compiler"` decision at tick 0.
+ */
+export async function runMarketLevel(
+  opts: RunLevelOptions & { compiled?: { strategy: MarketStrategy; latencyMs: number } },
+): Promise<RunLevelOutput> {
+  const { runId, spec, charter, llm, sink } = opts;
+  const now = opts.now ?? Date.now;
+  const log = opts.log ?? (() => {});
+  const engine = await resolveEngine(opts.engine);
+  const { limits } = spec;
+  const indicators: IndicatorConfig[] = spec.env.params.indicators ?? [];
+
+  const startedAt = now();
+  let state = engine.generateLevel(spec);
+  const initialState = state;
+  await sink.push({ kind: "level_start", levelId: spec.id, seed: spec.seed, initialState, spec });
+  log(JSON.stringify({ event: "level_start", levelId: spec.id }));
+
+  const decisions: DecisionRecord[] = [];
+  const actions: Replay["actions"] = [];
+  const events: SimEvent[] = [];
+  let llmCalls = 0;
+  let strategy: MarketStrategy | undefined;
+  let compileError: string | undefined;
+
+  if (opts.compiled) {
+    strategy = opts.compiled.strategy;
+    llmCalls = 0;
+  } else {
+    llmCalls = 1;
+    const compileStarted = now();
+    try {
+      const compiled = await compileMarketStrategy(llm, charter, indicators, { timeoutMs: Math.max(1, limits.wallClockMs) });
+      strategy = compiled.strategy;
+      const record: DecisionRecord = {
+        tick: 0,
+        intent: `Compiled charter into ${compiled.strategy.rules.length} rule(s)`,
+        plan: [],
+        stopOn: [],
+        latencyMs: Math.max(compiled.latencyMs, now() - compileStarted),
+        source: "compiler",
+      };
+      decisions.push(record);
+      await sink.push({ kind: "decision", levelId: spec.id, record });
+      log(JSON.stringify({ event: "decision", levelId: spec.id, tick: 0, intent: record.intent, source: "compiler" }));
+    } catch (e) {
+      compileError = `strategy compile failed: ${errorMessage(e)}`;
+      const record: DecisionRecord = { tick: 0, intent: "(fallback) hold", plan: [], stopOn: [], latencyMs: now() - compileStarted, source: "compiler", error: compileError };
+      decisions.push(record);
+      await sink.push({ kind: "decision", levelId: spec.id, record });
+      log(JSON.stringify({ event: "decision", levelId: spec.id, tick: 0, intent: record.intent, error: compileError }));
+    }
+  }
+
+  while (!engine.isTerminal(state) && state.tick < limits.ticks && now() - startedAt < limits.wallClockMs) {
+    if (!state.market) throw new Error(`Rune-trading state missing for ${spec.id}`);
+    const type = strategy ? evaluateMarketStrategy(strategy, state.market.candles, indicators) : "hold";
+    const action: Action = { type };
+    const record: DecisionRecord = {
+      tick: state.tick,
+      intent: `Strategy selected ${type}`,
+      plan: [action],
+      stopOn: [],
+      latencyMs: 0,
+      source: "strategy",
+      ...(compileError ? { error: compileError } : {}),
+    };
+    decisions.push(record);
+    await sink.push({ kind: "decision", levelId: spec.id, record });
+    const prev = state;
+    const res = engine.step(spec, prev, action);
+    state = res.state;
+    actions.push({ tick: prev.tick, action });
+    events.push(...res.events);
+    await sink.push({ kind: "frame", frame: { levelId: spec.id, tick: state.tick, action, events: res.events, state } });
+  }
+
+  if (state.status === "running") state = { ...state, status: "out_of_budget" };
+
+  const verdict = engine.verify(spec, initialState, state, events);
+  const ticks = state.tick;
+  const levelScore = engine.scoreLevel(spec, verdict, ticks, llmCalls, charter.length);
+  const result: LevelRunResult = { levelId: spec.id, seed: spec.seed, verdict, ticks, llmCalls, charterLength: charter.length, levelScore };
+  const replay: Replay = { runId, levelId: spec.id, seed: spec.seed, charter, initialState, decisions, actions, events, finalState: state, verdict };
+  await sink.push({ kind: "level_end", levelId: spec.id, result, replay });
+  log(JSON.stringify({ event: "level_end", levelId: spec.id, passed: verdict.passed, ticks, llmCalls, levelScore }));
+  return { result, replay };
+}
+
 export async function runTier(opts: RunTierOptions): Promise<RunSummary> {
-  const { runId, tier, charter, llm, sink } = opts;
+  const { runId, charter, llm, sink } = opts;
+  const tier = applyRunSettings(opts.tier, opts.settings);
   try {
     const engine = await resolveEngine(opts.engine);
     const results: LevelRunResult[] = [];
+    if (tier.mode === "runetrading") {
+      // Level 1 keeps its catalogue seed (public reference chart); hidden trials get fresh approved seeds.
+      const levels = opts.pickSeed ? tier.levels.map((l) => (l.index === 1 ? l : { ...l, seed: opts.pickSeed!(l) })) : tier.levels;
+      for (const spec of levels) {
+        const { result } = await runMarketLevel({ runId, spec, charter, llm, sink, engine, now: opts.now, log: opts.log });
+        results.push(result);
+      }
+      const summary = engine.summarizeRun(results);
+      await sink.push({ kind: "run_end", summary });
+      opts.log?.(JSON.stringify({ event: "run_end", passedLevels: summary.passedLevels, score: summary.score }));
+      return summary;
+    }
     // Hidden seeds: the caller may replace catalogue seeds with fresh approved ones per level.
     const levels = opts.pickSeed ? tier.levels.map((l) => ({ ...l, seed: opts.pickSeed!(l) })) : tier.levels;
     // Always run every level so the player sees all three results.

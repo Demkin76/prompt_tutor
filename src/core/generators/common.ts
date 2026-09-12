@@ -6,6 +6,8 @@ export function assetKeyFor(kind: EntityKind, subtype?: string): string {
   switch (kind) {
     case "golem":
       return "unit.golem";
+    case "fly":
+      return "unit.fly";
     case "plank":
       return "item.plank";
     case "key":

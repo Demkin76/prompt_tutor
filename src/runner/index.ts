@@ -4,18 +4,19 @@
  * Env:
  *   RUN_ID       run identifier (Convex run row)
  *   CONVEX_URL   deployment URL, e.g. https://xxx.convex.cloud
- *   MODE         "maze" | "redfloor" | "towerdefense"
+ *   MODE         "maze" | "redfloor" | "towerdefense" | "runetrading"
  *   TIER         tier number (1-based)
  *   SEEDS        optional "a,b,c" fixed seeds; otherwise fresh approved random seeds are picked per level
  *   CHARTER      the player's charter text
+ *   SETTINGS     optional RunSettings JSON (rune trading: indicator configuration)
  *   XAI_API_KEY  x.ai key
  *   XAI_MODEL    optional model override (default grok-4-fast)
  *
  * Streams RunnerMessages to Convex via POST ${CONVEX_URL}/api/mutation (runs:ingest).
  * Logs progress to stdout as single-line JSON. Exit code 0 on success, 1 on failure.
  */
-import type { LevelSpec, ModeId } from "@core/types";
-import { createRng, getTier, pickApprovedSeed } from "@core/index";
+import type { LevelSpec, ModeId, RunSettings } from "@core/types";
+import { createRng, getTier, pickApprovedSeed, validateRunSettings } from "@core/index";
 import { createXaiClient } from "@runtime/llm";
 import { createConvexHttpSink } from "@runtime/sink";
 import { runTier } from "@runtime/episode";
@@ -42,6 +43,11 @@ async function main(): Promise<void> {
 
   const tier = getTier(mode, tierNum);
   if (!tier) throw new Error(`unknown tier: MODE=${mode} TIER=${tierNum}`);
+  let settings: RunSettings | undefined;
+  if (process.env.SETTINGS && process.env.SETTINGS.trim() !== "") {
+    settings = JSON.parse(process.env.SETTINGS) as RunSettings;
+    validateRunSettings(settings);
+  }
   const llm = createXaiClient({ apiKey, model });
   const sink = createConvexHttpSink({ convexUrl, runId, log: (line) => process.stdout.write(line + "\n") });
 
@@ -56,8 +62,8 @@ async function main(): Promise<void> {
     return picked.seed;
   };
 
-  log({ event: "runner_start", runId, mode, tier: tierNum, levels: tier.levels.map((l) => l.id), model: model ?? "default" });
-  const summary = await runTier({ runId, tier, charter, llm, sink, pickSeed, log: (line) => process.stdout.write(line + "\n") });
+  log({ event: "runner_start", runId, mode, tier: tierNum, levels: tier.levels.map((l) => l.id), model: model ?? "default", settings: settings ?? null });
+  const summary = await runTier({ runId, tier, charter, llm, sink, pickSeed, settings, log: (line) => process.stdout.write(line + "\n") });
   log({ event: "runner_done", runId, passedLevels: summary.passedLevels, score: summary.score });
 }
 

@@ -2,7 +2,7 @@
  * LLM clients. `createXaiClient` talks to x.ai's OpenAI-compatible chat completions API with
  * JSON-schema structured output. `createFakeLlm` is for tests / offline demos.
  */
-import type { AgentDecision, LlmClient, LlmRequest, LlmResponse, Observation } from "../core/types";
+import type { AgentDecision, LlmClient, LlmRequest, LlmResponse, MarketStrategy, Observation } from "../core/types";
 import { ASCII_MARKER, CHARTER_CLOSE, CHARTER_OPEN, OBSERVATION_MARKER, USER_PROMPT_TAIL } from "./prompt";
 
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
@@ -83,10 +83,43 @@ export function createXaiClient(opts: XaiClientOptions): LlmClient {
   };
 }
 
-/** Deterministic fake: derives a decision from the observation and charter found in the user prompt. */
-export function createFakeLlm(decider: (obs: Observation, charter: string) => AgentDecision): LlmClient {
+/**
+ * Strategy the fake client "compiles" for rune trading when no `compileStrategy` is given:
+ * buy-and-hold on the first rising candle (uses only base metrics, so any indicator set works).
+ */
+export const FAKE_MARKET_STRATEGY: MarketStrategy = {
+  version: 1,
+  rules: [
+    {
+      when: { op: "gte", left: { kind: "metric", name: "price.return" }, right: { kind: "number", value: 0 } },
+      action: "long",
+    },
+  ],
+  fallback: "hold",
+};
+
+/** True for the structured-output schema of the market compiler (a `rules` array at the top level). */
+export function isMarketStrategyRequest(req: LlmRequest): boolean {
+  const props = (req.jsonSchema as { properties?: Record<string, unknown> } | undefined)?.properties;
+  return !!props && "rules" in props && "fallback" in props;
+}
+
+export interface FakeLlmOptions {
+  /** Rune trading: what the fake "compiler" returns for a charter (the raw user prompt). Defaults to FAKE_MARKET_STRATEGY. */
+  compileStrategy?: (charter: string) => MarketStrategy;
+}
+
+/**
+ * Deterministic fake: derives a decision from the observation and charter found in the user prompt.
+ * Market-compiler requests (rune trading) are answered with a fixed strategy instead.
+ */
+export function createFakeLlm(decider: (obs: Observation, charter: string) => AgentDecision, options: FakeLlmOptions = {}): LlmClient {
   return {
     async complete(req: LlmRequest): Promise<LlmResponse> {
+      if (isMarketStrategyRequest(req)) {
+        const strategy = options.compileStrategy ? options.compileStrategy(req.user) : FAKE_MARKET_STRATEGY;
+        return { text: JSON.stringify(strategy), latencyMs: 0 };
+      }
       const { charter, obs } = parseUserPrompt(req.user);
       const decision = decider(obs, charter);
       return { text: JSON.stringify(decision), latencyMs: 0 };

@@ -9,6 +9,32 @@ import { getLevel } from "./levels";
 describe("observation", () => {
   const spec = testSpec("redfloor", { observation: { radius: 1, memoryTicks: 3 } });
 
+  it("exposes only revealed market candles and aligned enabled indicators", () => {
+    const base = getLevel("runetrading-t1-l1")!;
+    const marketSpec = {
+      ...base,
+      env: {
+        ...base.env,
+        params: { ...base.env.params, indicators: [{ id: "sma" as const, enabled: true, period: 3 }] },
+      },
+    };
+    let state = generateLevel(marketSpec);
+    const obs = buildObservation(marketSpec, state, emptyMemory(), { ticksLeft: 120, callsLeft: 1 }, "market");
+    expect(obs.market?.candles).toHaveLength(1);
+    expect(obs.market?.candlesTotal).toBe(120);
+    expect(obs.market?.indicators.sma).toEqual([null]);
+    expect(obs.market?.indicators.ema).toBeUndefined();
+    expect(obs.asciiView).toBe("");
+    expect(obs.visible.tiles).toEqual([]);
+    expect(obs.objective).toMatch(/P&L/);
+    for (let i = 0; i < 3; i++) state = step(marketSpec, state, { type: "hold" }).state;
+    const later = buildObservation(marketSpec, state, emptyMemory(), { ticksLeft: 117, callsLeft: 1 }, "market");
+    expect(later.market?.candles).toHaveLength(4);
+    expect(later.market?.indicators.sma).toHaveLength(4);
+    expect(later.market?.indicators.sma[3]).not.toBeNull();
+    expect(detectTriggers(marketSpec, state, state, [])).toEqual([]);
+  });
+
   it("shows only tiles within the radius, agent centred, ? outside the grid", () => {
     const s = stateFromAscii(["@pR", "..A", "#.."], { radius: 1 });
     const obs = buildObservation(spec, s, emptyMemory(), { ticksLeft: 5, callsLeft: 2 }, "run1");

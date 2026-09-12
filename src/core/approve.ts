@@ -8,6 +8,7 @@ import type { Action, Dir, Entity, LevelSpec, SimEvent, TierSpec, Vec, WorldStat
 import { bfs, dirTo, entityById, fromIdx, idx, isSafeWalkable, manhattan, neighbors, samePos, tileAt } from "./grid";
 import { generateLevel } from "./generators/index";
 import { enemyRoute } from "./generators/towerdefense";
+import { marketSeriesFor } from "./generators/market";
 import { step } from "./sim";
 
 export interface Approval {
@@ -339,6 +340,30 @@ function solveTowerDefense(spec: LevelSpec, initial: WorldState): Runner {
   throw Object.assign(new SolveError(`no greedy placement wins: ${lastReason}`), { runner: last });
 }
 
+/**
+ * Rune trading (full knowledge): find the single most profitable trade in the series and
+ * execute it through the real sim. Approved iff that trade still wins after fees, i.e. the
+ * level is completable with positive net P&L.
+ */
+function solveRuneTrading(r: Runner): void {
+  const candles = marketSeriesFor(r.spec);
+  let best: { side: "long" | "short"; open: number; close: number; profit: number } | null = null;
+  for (let open = 0; open < candles.length - 1; open++) {
+    for (let close = open + 1; close < candles.length; close++) {
+      const longProfit = candles[close].close - candles[open].close;
+      const side = longProfit >= 0 ? "long" : "short";
+      const profit = Math.abs(longProfit);
+      if (!best || profit > best.profit) best = { side, open, close, profit };
+    }
+  }
+  if (!best) throw new SolveError("rune-trading series has no trade opportunity");
+  for (let index = 0; index < candles.length && !r.done; index++) {
+    if (index === best.open) r.do({ type: best.side });
+    else if (index === best.close) r.do({ type: "close" });
+    else r.do({ type: "hold" });
+  }
+}
+
 // ───────────────────────── public API ─────────────────────────
 
 /** Approve an already generated initial state (same contract as `approveLevel`). */
@@ -354,6 +379,9 @@ export function approveState(spec: LevelSpec, initial: WorldState): Approval {
         break;
       case "towerdefense":
         runner = solveTowerDefense(spec, initial);
+        break;
+      case "runetrading":
+        solveRuneTrading(runner);
         break;
       default:
         return { ok: false, reason: `unknown mode ${String(spec.mode)}`, actions: [], ticks: 0 };

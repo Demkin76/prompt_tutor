@@ -3,23 +3,28 @@
  */
 import type {
   Action,
+  ChartClass,
   DecisionRecord,
   Dir,
   Entity,
   Frame,
+  IndicatorConfig,
   LevelRunResult,
   LevelSpec,
+  MarketState,
   ModeId,
+  Ohlc,
   RunSummary,
   SimEvent,
   TierSpec,
   TileType,
+  TradeActionType,
   Vec,
   WorldState,
 } from "@core/types";
-import type { DecisionRow, FrameRow, LevelRunDoc, ModeInfo, RunDoc, SessionDoc } from "./api";
+import type { CreateRunArgs, DecisionRow, FrameRow, LevelRunDoc, ModeInfo, RunDoc, SessionDoc } from "./api";
 import type { RunnerMessage, TierResult } from "@core/types";
-import { listTiers } from "@core/index";
+import { defaultRunSettings, listTiers, redactInProgressMarketLevel, toPublicTier, validateMarketCharter } from "@core/index";
 
 // ───────────────────────── helpers ─────────────────────────
 const W = 12, H = 12;
@@ -322,13 +327,231 @@ const tdDecisions: DecisionRecord[] = [
   { tick: 2, intent: "Towers are set. Start the waves.", plan: [{ type: "start_wave" }, { type: "start_wave" }], stopOn: ["plan_done"], latencyMs: 700 },
 ];
 
+// ───────────────────────── Rune trading world ─────────────────────────
+/**
+ * Scripted market demo. Candles are deterministic (seeded PRNG + regime shape, same recipe as the engine's
+ * generator), and the trade plan is scripted, so the mock backend can play a rune-trading run end-to-end
+ * without an LLM. The stepping rules mirror the engine's market sim: one action per candle close, one
+ * unleveraged position, a fee on every open and close, forced close after the last candle.
+ */
+export const MARKET_CANDLES = 120;
+export const MARKET_FEE_BPS = 10;
+export const MARKET_BALANCE = 10_000;
+const MARKET_CLASSES: ChartClass[] = ["bull", "bear", "double-bottom"];
+const MARKET_TITLES = ["Emerald Ascent", "Crimson Descent", "Twin Wells"];
+const MARKET_ACTIONS: TradeActionType[] = ["long", "short", "close", "hold"];
+
+function mulberry32(seed: number): () => number {
+  let a = seed >>> 0;
+  return () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let t = a;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const gaussian = (x: number, center: number, width: number): number => Math.exp(-((x - center) ** 2) / (2 * width ** 2));
+
+function regimeShape(chartClass: ChartClass, t: number): number {
+  switch (chartClass) {
+    case "bull":
+      return 0.2 * t + 0.012 * Math.sin(t * Math.PI * 8);
+    case "bear":
+      return -0.2 * t + 0.012 * Math.sin(t * Math.PI * 8);
+    case "flat":
+      return 0.018 * Math.sin(t * Math.PI * 7) + 0.006 * Math.sin(t * Math.PI * 17);
+    case "double-bottom":
+      return 0.03 * t - 0.13 * gaussian(t, 0.31, 0.075) - 0.13 * gaussian(t, 0.64, 0.075) + 0.16 * Math.max(0, (t - 0.72) / 0.28);
+  }
+}
+
+const round4 = (v: number): number => Math.round(v * 1e4) / 1e4;
+const marketSeed = (tier: number, index: number): number => 44000 + tier * 100 + index * 7;
+
+/** Deterministic OHLC series for the mock: same seed + class always yields the same candles. */
+export function buildMarketCandles(seed: number, chartClass: ChartClass, count = MARKET_CANDLES): Ohlc[] {
+  const rng = mulberry32(seed);
+  const start = 90 + rng() * 20;
+  const candles: Ohlc[] = [];
+  let previousClose = start;
+  let noise = 0;
+  for (let index = 0; index < count; index++) {
+    const t = index / (count - 1);
+    noise = noise * 0.72 + (rng() - 0.5) * 0.007;
+    const close = Math.max(1, start * (1 + regimeShape(chartClass, t) + noise));
+    const open = index === 0 ? start : previousClose;
+    const wick = start * (0.0025 + rng() * 0.0045);
+    const high = Math.max(open, close) + wick * (0.5 + rng());
+    const low = Math.max(0.01, Math.min(open, close) - wick * (0.5 + rng()));
+    candles.push({ open: round4(open), high: round4(high), low: round4(low), close: round4(close) });
+    previousClose = close;
+  }
+  return candles;
+}
+
+export function buildMarketWorld(candles: Ohlc[], chartClass: ChartClass, startingBalance = MARKET_BALANCE): WorldState {
+  return {
+    tick: 0,
+    size: [1, 1],
+    tiles: ["floor"],
+    entities: [],
+    agent: { pos: [0, 0], facing: "east", inventory: [], alive: true },
+    market: {
+      chartClass,
+      candles: [candles[0]],
+      candleIndex: 0,
+      candlesTotal: candles.length,
+      startingBalance,
+      balance: startingBalance,
+      position: null,
+      realizedPnl: 0,
+      unrealizedPnl: 0,
+      feesPaid: 0,
+      finalPnl: null,
+      status: "running",
+    },
+    status: "running",
+    rngState: 1,
+    seen: [0],
+  };
+}
+
+type MarketEvent = { type: SimEvent["type"]; data?: Record<string, string | number | boolean | null> };
+const money = (v: number): number => Math.round(v * 1e8) / 1e8;
+
+function positionPnl(position: NonNullable<MarketState["position"]>, price: number): number {
+  const delta = position.side === "long" ? price - position.entryPrice : position.entryPrice - price;
+  return delta * position.quantity;
+}
+
+/** One market tick, same semantics as the engine: act at the current close, then reveal the next candle (or settle). */
+export function stepMarketMock(input: MarketState, action: TradeActionType, nextCandle: Ohlc | undefined, feeBps = MARKET_FEE_BPS): { market: MarketState; events: MarketEvent[] } {
+  const market: MarketState = JSON.parse(JSON.stringify(input));
+  const events: MarketEvent[] = [];
+  const price = market.candles[market.candles.length - 1].close;
+  const fee = (notional: number) => {
+    const f = Math.abs(notional) * (feeBps / 10_000);
+    market.balance = money(market.balance - f);
+    market.feesPaid = money(market.feesPaid + f);
+    events.push({ type: "fee_charged", data: { fee: money(f), feeBps } });
+  };
+  const close = () => {
+    const position = market.position;
+    if (!position) return;
+    const pnl = positionPnl(position, price);
+    market.realizedPnl = money(market.realizedPnl + pnl);
+    market.balance = money(market.balance + pnl);
+    market.position = null;
+    events.push({ type: "position_closed", data: { side: position.side, price, pnl: money(pnl) } });
+    fee(position.quantity * price);
+  };
+  const open = (side: "long" | "short") => {
+    if (market.balance <= 0) return;
+    const quantity = market.balance / price;
+    market.position = { side, entryPrice: price, quantity };
+    events.push({ type: "position_opened", data: { side, price, quantity } });
+    fee(quantity * price);
+  };
+  if (action === "close") close();
+  else if (action === "long" || action === "short") {
+    if (market.position?.side !== action) {
+      close();
+      open(action);
+    }
+  }
+  if (nextCandle) {
+    market.candles.push(nextCandle);
+    market.candleIndex += 1;
+    market.unrealizedPnl = market.position ? money(positionPnl(market.position, nextCandle.close)) : 0;
+    events.push({ type: "candle_revealed", data: { candleIndex: market.candleIndex, close: nextCandle.close } });
+    if (market.balance + market.unrealizedPnl <= 0) {
+      market.position = null;
+      market.balance = 0;
+      market.unrealizedPnl = 0;
+      market.finalPnl = -market.startingBalance;
+      market.status = "lost";
+      events.push({ type: "liquidated" });
+    }
+    return { market, events };
+  }
+  if (market.position) {
+    events.push({ type: "forced_close", data: { candleIndex: market.candleIndex } });
+    close();
+  }
+  market.unrealizedPnl = 0;
+  market.finalPnl = money(market.balance - market.startingBalance);
+  market.status = market.finalPnl > 0 ? "won" : "lost";
+  events.push({ type: "market_complete", data: { finalPnl: market.finalPnl, balance: market.balance } });
+  return { market, events };
+}
+
+/** Best single trade on closes (the engine approver's oracle) opened no earlier than `warmup`; `invert` takes the losing side instead. */
+function bestTrade(candles: Ohlc[], warmup: number, invert: boolean): { side: "long" | "short"; open: number; close: number } {
+  let best = { side: "long" as "long" | "short", open: 0, close: 1, profit: -Infinity };
+  for (let open = Math.min(warmup, candles.length - 2); open < candles.length - 1; open++) {
+    for (let close = open + 1; close < candles.length; close++) {
+      const longProfit = candles[close].close - candles[open].close;
+      const profit = Math.max(longProfit, -longProfit);
+      if (profit > best.profit) best = { side: longProfit >= 0 ? "long" : "short", open, close, profit };
+    }
+  }
+  if (invert) best.side = best.side === "long" ? "short" : "long";
+  return best;
+}
+
+/** Scripted market level: frames for every candle plus the settlement tick, and the decisions that explain the trades. */
+function marketScript(
+  levelId: string,
+  candles: Ohlc[],
+  chartClass: ChartClass,
+  indicators: IndicatorConfig[],
+  informed: boolean,
+  feeBps = MARKET_FEE_BPS,
+): { frames: Frame[]; decisions: DecisionRecord[]; initial: WorldState } {
+  // The strategy can only act once its slowest enabled indicator has values.
+  const warmup = Math.min(60, Math.max(20, ...indicators.filter((i) => i.enabled).map((i) => Math.max(i.period ?? 0, i.slowPeriod ?? 0))));
+  const trade = bestTrade(candles, warmup, !informed);
+  const actions: TradeActionType[] = candles.map((_, index) => (index === trade.open ? trade.side : index === trade.close ? "close" : "hold"));
+  const initial = buildMarketWorld(candles, chartClass);
+  const frames: Frame[] = [];
+  let state = initial;
+  actions.forEach((action, index) => {
+    const tick = index + 1;
+    const { market, events } = stepMarketMock(state.market!, action, candles[tick], feeBps);
+    state = { ...state, tick, market, status: market.status };
+    frames.push({ levelId, tick, action: { type: action }, events: events.map((e) => ({ tick, ...e })), state });
+  });
+  const why = (action: TradeActionType): string => {
+    if (action === "close") return informed ? "Fast average is turning back toward the slow one — close and bank it." : "Losses mounting — close.";
+    if (!informed) return `The charter names no indicator, so the golem guesses: ${action}.`;
+    return action === "long" ? "SMA crossed above EMA with RSI below 70 — go long." : "SMA crossed below EMA with RSI above 30 — go short.";
+  };
+  const decisions: DecisionRecord[] = [
+    { tick: 0, intent: "Charter compiled into an indicator strategy (one LLM call). Applying it candle by candle.", plan: [], stopOn: [], latencyMs: 940, source: "compiler" },
+    ...actions.flatMap<DecisionRecord>((action, index) =>
+      action === "hold" ? [] : [{ tick: index + 1, intent: why(action), plan: [{ type: action }], stopOn: [], latencyMs: 0, source: "strategy" }],
+    ),
+  ];
+  return { frames, decisions, initial };
+}
+
+const MARKET_KNOWS = [
+  "Level 1 shows its full reference chart before you deploy. Levels 2 and 3 use unseen charts of the same regime.",
+  "One action per candle close: long, short, close or hold. One position at a time, no leverage.",
+  "Every open and close pays a 0.1% fee. Any open position is closed after the final candle.",
+  "Pass by finishing above the starting balance after fees. Absolute price levels are forbidden — describe indicators, crossings and relative moves.",
+];
+
 // ───────────────────────── Specs ─────────────────────────
 export const MODES: ModeInfo[] = [
   { id: "maze", title: "Maze", tagline: "Find the altar through winding stone corridors." },
   { id: "redfloor", title: "Red Floor", tagline: "The floor is lava. Bridge it or burn." },
+  { id: "runetrading", title: "Rune Trading", tagline: "Teach the golem an indicator strategy, then face unseen rune markets." },
 ];
 
-const MODE_TITLE: Record<ModeId, string> = { maze: "Maze", redfloor: "Red Floor", towerdefense: "Tower Defense" };
+const MODE_TITLE: Record<ModeId, string> = { maze: "Maze", redfloor: "Red Floor", towerdefense: "Tower Defense", runetrading: "Rune Trading" };
 
 const ENEMY_CHARTER =
   "I send waves along the path from the spawn to the base.\n" +
@@ -348,6 +571,26 @@ function levelSpec(mode: ModeId, tier: number, index: number): LevelSpec {
     scoring: { completion: 100, perTick: -0.5, perChar: -0.05, perLlmCall: -1 },
     seed: 1000 * tier + index,
   };
+  if (mode === "runetrading") {
+    const chartClass = MARKET_CLASSES[tier - 1] ?? "flat";
+    const name = MARKET_TITLES[tier - 1] ?? `Regime ${tier}`;
+    const indicators: IndicatorConfig[] = defaultRunSettings().indicators.map((i) => ({ ...i }));
+    const spec: LevelSpec = {
+      ...base,
+      id: `runetrading-t${tier}-l${index}`,
+      title: index === 1 ? `${name} — Reference` : `${name} — Trial ${index - 1}`,
+      brief: `Trade ${MARKET_CANDLES} candles of a fictional rune pair in a ${chartClass} regime and finish above the starting balance after fees.`,
+      playerKnows: MARKET_KNOWS,
+      promptBudget: 250 + (tier - 1) * 50,
+      env: { size: [1, 1], generator: "runetrading", params: { chartClass, candleCount: MARKET_CANDLES, feeBps: MARKET_FEE_BPS, startingBalance: MARKET_BALANCE, indicators } },
+      observation: { radius: 0, memoryTicks: MARKET_CANDLES },
+      limits: { ticks: MARKET_CANDLES, llmCalls: 1, wallClockMs: 90000 },
+      actions: MARKET_ACTIONS,
+      scoring: { completion: 100, perTick: 0, perChar: -0.02, perLlmCall: -1 },
+    };
+    if (index === 1) spec.trainingPreview = buildMarketCandles(marketSeed(tier, 1), chartClass);
+    return spec;
+  }
   if (mode === "towerdefense") {
     return {
       ...base,
@@ -397,9 +640,14 @@ function levelSpec(mode: ModeId, tier: number, index: number): LevelSpec {
   };
 }
 
-/** Real catalogue from the engine with seeds hidden (same shape the Convex `levels.tiers` query returns). */
+/**
+ * Real catalogue from the engine, reduced to what the player may see (same shape the Convex `levels.tiers` query
+ * returns). Modes the engine does not list yet fall back to the hand-built catalogue.
+ */
 export function buildTiers(mode: ModeId): TierSpec[] {
-  return listTiers(mode).map((t) => ({ ...t, levels: t.levels.map((l) => ({ ...l, seed: 0, agentKnows: [] })) }));
+  const tiers = listTiers(mode);
+  if (tiers.length === 0) return buildScriptedTiers(mode);
+  return tiers.map((t) => toPublicTier(t) as unknown as TierSpec);
 }
 
 /** Hand-built catalogue kept for the scripted fallback worlds. */
@@ -449,7 +697,10 @@ export class MockStore {
       } catch {
         /* ignore */
       }
-      this.session = saved?.sessionId === sessionId ? saved : { sessionId, progress: { maze: 1, redfloor: 1, towerdefense: 1 }, best: {} };
+      this.session =
+        saved?.sessionId === sessionId
+          ? { ...saved, progress: { ...saved.progress, runetrading: saved.progress.runetrading ?? 1 } }
+          : { sessionId, progress: { maze: 1, redfloor: 1, towerdefense: 1, runetrading: 1 }, best: {} };
       this.bump();
     }
     return this.session;
@@ -467,6 +718,12 @@ export class MockStore {
     return this.levelRuns.get(runId) ?? [];
   }
 
+  /** What the UI may see: a rune-trading level still in progress has its future candles redacted (like `runs.levelRuns`). */
+  getPublicLevelRuns(runId: string): LevelRunDoc[] {
+    const run = this.runs.get(runId);
+    return this.getLevelRuns(runId).map((row) => redactInProgressMarketLevel(run?.mode, row));
+  }
+
   getFrames(runId: string, levelId: string): FrameRow[] {
     return this.frames.get(this.key(runId, levelId)) ?? [];
   }
@@ -479,9 +736,24 @@ export class MockStore {
     this.timers.push(window.setTimeout(fn, ms));
   }
 
-  createRun(args: { sessionId: string; mode: ModeId; tier: number; charter: string }): string {
+  createRun(args: CreateRunArgs): string {
+    if (args.mode === "runetrading") {
+      const problems = validateMarketCharter(args.charter);
+      if (problems.length) throw new Error(problems.join(" "));
+    }
     const runId = "mock-" + Math.random().toString(36).slice(2, 10);
-    const run: RunDoc = { runId, sessionId: args.sessionId, mode: args.mode, tier: args.tier, currentTier: args.tier, ladder: [], charter: args.charter, status: "queued", host: "mock" };
+    const run: RunDoc = {
+      runId,
+      sessionId: args.sessionId,
+      mode: args.mode,
+      tier: args.tier,
+      currentTier: args.tier,
+      ladder: [],
+      charter: args.charter,
+      ...(args.settings ? { settings: args.settings } : {}),
+      status: "queued",
+      host: "mock",
+    };
     this.runs.set(runId, run);
     this.levelRuns.set(runId, []);
     this.bump();
@@ -585,25 +857,39 @@ export class MockStore {
     }
   }
 
-  private playScripted(runId: string, run: RunDoc, args: { sessionId: string; mode: ModeId; tier: number; charter: string }): void {
+  private playScripted(runId: string, run: RunDoc, args: CreateRunArgs): void {
     const tierSpec = buildTiers(args.mode)[args.tier - 1];
 
     const careful = /plank|bridge|careful|avoid/i.test(args.charter);
+    // Rune trading: a charter that names an indicator or a crossing "compiles" into the winning demo strategy; a vague one loses level 2.
+    const informed = /sma|ema|rsi|macd|bollinger|atr|cross|average|trend|momentum/i.test(args.charter);
     const FRAME_MS = 400;
+    // Slower than the Run screen's own candle animation so the UI is never behind the data.
+    const MARKET_FRAME_MS = 80;
 
     // Plan each level's script.
     const plans = tierSpec.levels.map((spec, i) => {
       let frames: Frame[];
       let decisions: DecisionRecord[];
-      if (args.mode === "towerdefense") {
+      let initial: WorldState;
+      if (args.mode === "runetrading") {
+        const chartClass = spec.env.params.chartClass ?? "flat";
+        const candles = spec.trainingPreview ?? buildMarketCandles(marketSeed(spec.tier, spec.index), chartClass, spec.env.params.candleCount ?? MARKET_CANDLES);
+        const indicators = run.settings?.indicators ?? spec.env.params.indicators ?? [];
+        const script = marketScript(spec.id, candles, chartClass, indicators, informed || i !== 1, spec.env.params.feeBps ?? MARKET_FEE_BPS);
+        frames = script.frames;
+        decisions = script.decisions;
+        initial = script.initial;
+      } else if (args.mode === "towerdefense") {
         frames = towerDefenseScript(spec.id);
         decisions = tdDecisions;
+        initial = buildTowerDefenseWorld();
       } else {
         const fail = i === 1 && !careful;
         frames = fail ? redFloorFail(spec.id) : redFloorSuccess(spec.id);
         decisions = redFloorDecisions(fail);
+        initial = buildRedFloorWorld();
       }
-      const initial = args.mode === "towerdefense" ? buildTowerDefenseWorld() : buildRedFloorWorld();
       return { spec, frames, decisions, initial };
     });
 
@@ -617,7 +903,7 @@ export class MockStore {
     plans.forEach((plan, order) => {
       t += 600;
       this.later(t, () => {
-        const lr: LevelRunDoc = { levelId: plan.spec.id, seed: plan.spec.seed, spec: plan.spec, initialState: plan.initial, order };
+        const lr: LevelRunDoc = { levelId: plan.spec.id, seed: plan.spec.seed ?? 0, spec: plan.spec, initialState: plan.initial, order };
         this.levelRuns.set(runId, [...this.getLevelRuns(runId), lr]);
         this.frames.set(this.key(runId, plan.spec.id), []);
         this.decisions.set(this.key(runId, plan.spec.id), []);
@@ -636,7 +922,7 @@ export class MockStore {
         // Give the UI time to animate a wave trace before the next frame lands.
         const prev = plan.frames[fi - 1];
         const prevTrace = prev?.events.find((e) => e.type === "wave_ended")?.data?.trace;
-        t += Array.isArray(prevTrace) ? prevTrace.length * 120 + 500 : FRAME_MS;
+        t += Array.isArray(prevTrace) ? prevTrace.length * 120 + 500 : args.mode === "runetrading" ? MARKET_FRAME_MS : FRAME_MS;
         const at = t;
         for (const d of plan.decisions) {
           if (d.tick === frame.tick) this.later(at - 150, () => pushDecision(d));
@@ -654,29 +940,50 @@ export class MockStore {
         const last = plan.frames[plan.frames.length - 1];
         const passed = last.state.status === "won";
         const ticks = last.tick;
-        const llmCalls = plan.decisions.length;
+        const llmCalls = plan.decisions.filter((d) => d.source !== "strategy").length;
         const sc = plan.spec.scoring;
         const levelScore = passed ? Math.max(0, Math.round(sc.completion + ticks * sc.perTick + args.charter.length * sc.perChar + llmCalls * sc.perLlmCall)) : 0;
+        const market = last.state.market;
+        const finalPnl = market ? (market.finalPnl ?? market.balance - market.startingBalance) : 0;
+        const verdict: LevelRunResult["verdict"] = market
+          ? {
+              passed,
+              score: passed ? Math.max(0.1, Math.min(1, finalPnl / market.startingBalance / 0.05)) : 0,
+              confidence: 1,
+              reasons: [
+                passed ? `Finished with positive net P&L ${finalPnl.toFixed(2)} after fees.` : `Net P&L ${finalPnl.toFixed(2)} is not positive after fees.`,
+                ...(passed ? [] : ["The charter never named an indicator or a crossing, so the strategy had nothing to trade on."]),
+              ],
+              evidence: [
+                {
+                  type: "state",
+                  value: { startingBalance: market.startingBalance, finalBalance: market.balance, finalPnl, feesPaid: market.feesPaid },
+                  note: "rune trading result",
+                },
+                { type: "event", value: "market_complete", note: `tick ${ticks}` },
+              ],
+            }
+          : {
+              passed,
+              score: passed ? 1 : 0,
+              confidence: 0.95,
+              reasons: passed
+                ? [args.mode === "towerdefense" ? "All waves cleared; base survived." : "Golem reached the altar alive."]
+                : ["Golem stepped on red floor and was destroyed.", "Charter never mentioned planks or avoiding red tiles."],
+              evidence: passed
+                ? [
+                    { type: "event", value: args.mode === "towerdefense" ? "all_waves_cleared" : "goal_reached", note: `tick ${ticks}` },
+                    { type: "position", value: last.state.agent.pos, note: "final position" },
+                  ]
+                : [
+                    { type: "event", value: "hazard_entered", note: `tick ${ticks}` },
+                    { type: "state", value: { alive: false }, note: "agent destroyed" },
+                  ],
+            };
         const result: LevelRunResult = {
           levelId: plan.spec.id,
-          seed: plan.spec.seed,
-          verdict: {
-            passed,
-            score: passed ? 1 : 0,
-            confidence: 0.95,
-            reasons: passed
-              ? [args.mode === "towerdefense" ? "All waves cleared; base survived." : "Golem reached the altar alive."]
-              : ["Golem stepped on red floor and was destroyed.", "Charter never mentioned planks or avoiding red tiles."],
-            evidence: passed
-              ? [
-                  { type: "event", value: args.mode === "towerdefense" ? "all_waves_cleared" : "goal_reached", note: `tick ${ticks}` },
-                  { type: "position", value: last.state.agent.pos, note: "final position" },
-                ]
-              : [
-                  { type: "event", value: "hazard_entered", note: `tick ${ticks}` },
-                  { type: "state", value: { alive: false }, note: "agent destroyed" },
-                ],
-          },
+          seed: plan.spec.seed ?? 0,
+          verdict,
           ticks,
           llmCalls,
           charterLength: args.charter.length,
@@ -691,7 +998,7 @@ export class MockStore {
                 replay: {
                   runId,
                   levelId: plan.spec.id,
-                  seed: plan.spec.seed,
+                  seed: plan.spec.seed ?? 0,
                   charter: args.charter,
                   initialState: plan.initial,
                   decisions: plan.decisions,
@@ -726,7 +1033,8 @@ export class MockStore {
         const best = { ...this.session.best };
         if (!prev || prev.score < summary.score) best[key] = { score: summary.score, passedLevels, charter: args.charter };
         const progress = { ...this.session.progress };
-        if (tierUnlocked && (progress[args.mode] ?? 1) < args.tier + 1 && args.tier < 3) progress[args.mode] = args.tier + 1;
+        const maxTier = buildTiers(args.mode).length;
+        if (tierUnlocked && (progress[args.mode] ?? 1) < args.tier + 1 && args.tier < maxTier) progress[args.mode] = args.tier + 1;
         this.session = { ...this.session, best, progress };
         this.persistSession();
       }

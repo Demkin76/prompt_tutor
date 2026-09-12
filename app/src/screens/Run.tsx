@@ -1,14 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ModeId } from "@core/types";
 import { BACKEND, golemApi } from "../api";
+import { assetUrl } from "../assets";
 import { CharterLocked } from "../components/CharterPanel";
 import { GolemLog } from "../components/GolemLog";
+import { IndicatorSettings } from "../components/IndicatorSettings";
 import { LevelCard } from "../components/LevelCard";
+import { MarketChart } from "../components/MarketChart";
 import { StatusBox } from "../components/StatusBox";
 import { WorldCanvas } from "../components/WorldCanvas";
 import { buildLog, traceOf } from "../log";
+import { markersFromEvents } from "../marketChartModel";
 
 const FRAME_MS = 250;
+const MARKET_FRAME_MS = 30;
 const TRACE_MS = 120;
 
 interface Props {
@@ -29,6 +34,7 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
   const levelId = current?.levelId ?? null;
   const frames = golemApi.useFrames(runId, levelId);
   const decisions = golemApi.useDecisions(runId, levelId);
+  const market = mode === "runetrading";
   // Ladder: the tier being played advances while every level of a tier is passed.
   const playingTier = current?.spec?.tier ?? run?.currentTier ?? tier;
   const tierSpec = tiers?.find((t) => t.tier === playingTier);
@@ -50,16 +56,19 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
 
   useEffect(() => {
     if (cursor >= total) return;
-    const delay = trace ? trace.trace.length * TRACE_MS + 300 : FRAME_MS;
+    const delay = trace ? trace.trace.length * TRACE_MS + 300 : market ? MARKET_FRAME_MS : FRAME_MS;
     const t = window.setTimeout(() => setCursor((c) => c + 1), delay);
     return () => window.clearTimeout(t);
-  }, [cursor, total, trace]);
+  }, [cursor, total, trace, market]);
 
   const state = cursor >= total && current?.replay ? current.replay.finalState : shownFrame?.frame.state ?? current?.initialState ?? null;
   const uptoTick = shownFrame?.tick ?? 0;
   const lines = useMemo(() => buildLog(decisions ?? [], frames ?? [], uptoTick), [decisions, frames, uptoTick]);
-  const llmCalls = (decisions ?? []).filter((d) => d.tick <= uptoTick).length;
+  // Strategy ticks are mechanical applications of the compiled charter, not LLM calls.
+  const llmCalls = (decisions ?? []).filter((d) => d.tick <= uptoTick && d.record.source !== "strategy").length;
   const lastIntent = [...(decisions ?? [])].filter((d) => d.tick <= uptoTick).pop()?.record.intent;
+  const indicators = run?.settings?.indicators ?? current?.spec?.env.params.indicators ?? [];
+  const markers = useMemo(() => (market ? markersFromEvents((frames ?? []).slice(0, cursor).map((row) => ({ tick: row.tick, events: row.frame.events }))) : []), [market, frames, cursor]);
 
   const finished = run?.status === "finished";
   const errored = run?.status === "error";
@@ -79,12 +88,13 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
 
   const levelIndex = current?.spec?.index ?? 1;
   const ladder = run.summary?.tiers ?? run.ladder ?? [];
-  const radius = current?.spec.observation.radius ?? 2;
+  const radius = current?.spec?.observation.radius ?? 2;
+  const pnl = state?.market ? (state.market.finalPnl ?? state.market.balance - state.market.startingBalance) : 0;
   const banner =
     state?.status === "won"
-      ? { cls: "won", text: mode === "towerdefense" ? "BASE DEFENDED" : "ALTAR REACHED" }
+      ? { cls: "won", text: mode === "towerdefense" ? "BASE DEFENDED" : market ? `RUNE PROFIT +${pnl.toFixed(2)}` : "ALTAR REACHED" }
       : state?.status === "lost"
-        ? { cls: "lost", text: "GOLEM DESTROYED" }
+        ? { cls: "lost", text: market ? `RUNE LOSS ${pnl.toFixed(2)}` : "GOLEM DESTROYED" }
         : state?.status === "out_of_budget"
           ? { cls: "lost", text: "OUT OF BUDGET" }
           : null;
@@ -108,9 +118,29 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
         )}
       </div>
       <div className="col">
-        <div className="stage">
-          <WorldCanvas state={state} size={tierSpec.levels[0].env.size} radius={radius} showFog={!state?.td} trace={trace} />
-          {banner && allShown && bannerReady && <div className={`banner ${banner.cls}`}>{banner.text}</div>}
+        <div className={`stage ${market ? "trade-stage" : ""}`} style={market ? { ["--trade-bg" as string]: `url(${assetUrl("trade.bg.sanctum")})` } : undefined}>
+          {market && state?.market ? (
+            <MarketChart
+              candles={state.market.candles}
+              candlesTotal={state.market.candlesTotal}
+              indicators={indicators}
+              markers={markers}
+              label={(current?.spec?.title ?? "RUNE MARKET").toUpperCase()}
+            />
+          ) : market ? (
+            <div className="market-hidden">
+              <img src={assetUrl("trade.panel.chart.preview")} alt="" />
+              <span>WAITING FOR THE FIRST CANDLE</span>
+            </div>
+          ) : (
+            <WorldCanvas state={state} size={tierSpec.levels[0].env.size} radius={radius} showFog={!state?.td} trace={trace} />
+          )}
+          {banner && allShown && bannerReady && (
+            <div className={`banner ${banner.cls}`}>
+              {market && <img className="banner-rune" src={assetUrl(banner.cls === "won" ? "trade.fx.profit" : "trade.fx.loss")} alt="" />}
+              {banner.text}
+            </div>
+          )}
           {!banner && run.status === "queued" && <div className="banner wait">QUEUED — waiting for a runner</div>}
           {!banner && run.status === "running" && !current && <div className="banner wait">RUNNING — preparing level 1</div>}
           <div className="caption">
@@ -120,7 +150,7 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
                 <br />
               </>
             ) : null}
-            {lastIntent ? <span className="intent">"{lastIntent}"</span> : <span style={{ opacity: 0.6 }}>the golem is thinking...</span>}
+            {lastIntent ? <span className="intent">"{lastIntent}"</span> : <span style={{ opacity: 0.6 }}>{market ? "the golem is reading the runes..." : "the golem is thinking..."}</span>}
           </div>
           {BACKEND !== "convex" && (
             <div className="error" style={{ marginTop: 8 }}>
@@ -145,6 +175,7 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
         </div>
       </div>
       <div className="col">
+        {market && <IndicatorSettings value={indicators} onChange={() => {}} locked />}
         <CharterLocked value={charter} budget={tierSpec.levels[0].promptBudget} />
         <GolemLog lines={lines} />
         <StatusBox state={state} llmCalls={llmCalls} levelIndex={levelIndex} levelsTotal={3} tier={playingTier} />

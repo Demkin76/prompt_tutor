@@ -12,22 +12,31 @@ function altarPos(s: WorldState): Vec {
 }
 
 describe("level catalogue", () => {
-  it("has 6 tiers and 18 levels (maze + red floor)", () => {
-    expect(TIERS.length).toBe(6);
-    expect(ALL_LEVELS.length).toBe(18);
+  it("has two 3-tier grid ladders and a 4-tier rune-trading ladder (30 levels)", () => {
+    expect(TIERS.length).toBe(10);
+    expect(ALL_LEVELS.length).toBe(30);
     for (const t of TIERS) expect(t.levels.length).toBe(3);
-    expect(new Set(ALL_LEVELS.map((l) => l.id)).size).toBe(18);
-    expect(new Set(ALL_LEVELS.map((l) => l.seed)).size).toBe(18);
-    for (const m of MODES) expect(listTiers(m.id).length).toBe(3);
+    expect(new Set(ALL_LEVELS.map((l) => l.id)).size).toBe(30);
+    expect(new Set(ALL_LEVELS.map((l) => l.seed)).size).toBe(30);
+    for (const m of MODES) expect(listTiers(m.id).length).toBe(m.id === "runetrading" ? 4 : 3);
     expect(getTier("maze", 2)?.levels[0].id).toBe("maze-t2-l1");
     expect(getLevel("redfloor-t3-l3")?.tier).toBe(3);
+    expect(getTier("runetrading", 4)?.levels.map((l) => l.env.params.chartClass)).toEqual(["double-bottom", "double-bottom", "double-bottom"]);
   });
 
   it("budgets and limits escalate per tier", () => {
     for (const l of ALL_LEVELS) {
-      expect(l.promptBudget).toBe([200, 300, 400][l.tier - 1]);
-      expect(l.limits.ticks).toBe([80, 140, 200][l.tier - 1]);
-      expect(l.limits.llmCalls).toBe([15, 25, 40][l.tier - 1]);
+      if (l.mode === "runetrading") {
+        expect(l.promptBudget).toBe([250, 300, 350, 400][l.tier - 1]);
+        expect(l.limits.ticks).toBe(120);
+        expect(l.limits.llmCalls).toBe(1);
+        expect(l.actions).toEqual(["long", "short", "close", "hold"]);
+        expect(l.env.params.indicators?.map((i) => i.id)).toEqual(["sma", "ema", "rsi"]);
+      } else {
+        expect(l.promptBudget).toBe([200, 300, 400][l.tier - 1]);
+        expect(l.limits.ticks).toBe([80, 140, 200][l.tier - 1]);
+        expect(l.limits.llmCalls).toBe([15, 25, 40][l.tier - 1]);
+      }
       if (l.mode === "towerdefense") expect(l.opponent?.charter.length).toBeGreaterThan(20);
     }
   });
@@ -45,6 +54,17 @@ describe("generateLevel", () => {
     const a = generateLevel(l);
     const b = generateLevel({ ...l, seed: l.seed + 1 });
     expect(a.tiles).not.toEqual(b.tiles);
+  });
+
+  it("rune trading reveals only the first candle in the initial state", () => {
+    const level = getLevel("runetrading-t1-l1")!;
+    const state = generateLevel(level);
+    expect(state.market?.candles).toHaveLength(1);
+    expect(state.market?.candlesTotal).toBe(120);
+    expect(state.market?.chartClass).toBe("bull");
+    expect(state.market?.balance).toBe(10000);
+    expect(state.rngState).toBe(0);
+    expect(state.size).toEqual([1, 1]);
   });
 
   it("gives every entity an assetKey and includes the golem", () => {

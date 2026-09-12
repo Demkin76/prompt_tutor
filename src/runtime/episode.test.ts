@@ -4,6 +4,8 @@ import { runLevel, runTier } from "./episode";
 import { createFakeLlm } from "./llm";
 import { createArraySink } from "./sink";
 import { makeCorridorEngine, makeSpec } from "./testkit";
+import { getTier } from "../core/levels";
+import { MARKET_STRATEGY_JSON_SCHEMA } from "./marketCompiler";
 
 const eastx3: AgentDecision = {
   intent: "March east",
@@ -222,6 +224,80 @@ describe("runLevel", () => {
     expect(result.ticks).toBe(2);
     expect(result.llmCalls).toBe(3);
     expect(replay.finalState.status).toBe("out_of_budget");
+  });
+});
+
+describe("runTier: rune trading", () => {
+  const buyAndHold = JSON.stringify({
+    version: 1,
+    rules: [{ when: { op: "gt", left: { kind: "metric", name: "price.return", offset: null }, right: { kind: "number", value: -1 } }, action: "long" }],
+    fallback: "hold",
+  });
+
+  it("compiles the charter once per level and decides every candle deterministically", async () => {
+    const requests: LlmRequest[] = [];
+    const llm: LlmClient = {
+      async complete(req) {
+        requests.push(req);
+        return { text: buyAndHold, latencyMs: 3 };
+      },
+    };
+    const sink = createArraySink();
+    const summary = await runTier({
+      runId: "market-run",
+      tier: getTier("runetrading", 1)!,
+      charter: "Follow positive relative returns and stay long.",
+      llm,
+      sink,
+      settings: { indicators: [{ id: "rsi", enabled: true, period: 14 }] },
+    });
+    expect(requests).toHaveLength(3);
+    for (const req of requests) {
+      expect(req.jsonSchema).toBe(MARKET_STRATEGY_JSON_SCHEMA);
+      expect(req.user).toBe("Follow positive relative returns and stay long.");
+      expect(req.system).toContain('"id":"rsi"');
+    }
+    expect(summary.totalLevels).toBe(3);
+    expect(summary.passedLevels).toBe(3);
+    expect(summary.levels.every((l) => l.llmCalls === 1 && l.ticks === 120)).toBe(true);
+
+    const starts = sink.messages.filter((m) => m.kind === "level_start");
+    expect(starts.map((m) => m.kind === "level_start" && m.spec.env.params.indicators?.map((i) => i.id))).toEqual([["rsi"], ["rsi"], ["rsi"]]);
+    const decisions = sink.messages.filter((m) => m.kind === "decision");
+    expect(decisions.filter((m) => m.kind === "decision" && m.record.source === "compiler")).toHaveLength(3);
+    expect(decisions.filter((m) => m.kind === "decision" && m.record.source === "strategy")).toHaveLength(360);
+    const frames = sink.messages.filter((m) => m.kind === "frame");
+    expect(frames).toHaveLength(360);
+    expect(frames.every((m) => m.kind === "frame" && m.frame.state.rngState === 0)).toBe(true);
+    const ends = sink.messages.filter((m) => m.kind === "level_end");
+    expect(ends.every((m) => m.kind === "level_end" && m.replay.decisions.length === 121 && m.replay.actions.length === 120)).toBe(true);
+    expect(sink.messages.at(-1)?.kind).toBe("run_end");
+  });
+
+  it("keeps the catalogue seed of level 1 and picks fresh seeds for the hidden trials", async () => {
+    const llm: LlmClient = { async complete() { return { text: buyAndHold, latencyMs: 0 }; } };
+    const sink = createArraySink();
+    const tier = getTier("runetrading", 2)!;
+    await runTier({ runId: "r", tier, charter: "Trend.", llm, sink, pickSeed: (spec) => spec.seed + 1000 });
+    const seeds = sink.messages.filter((m) => m.kind === "level_start").map((m) => (m.kind === "level_start" ? m.seed : 0));
+    expect(seeds).toEqual([tier.levels[0].seed, tier.levels[1].seed + 1000, tier.levels[2].seed + 1000]);
+  });
+
+  it("falls back to hold-only (and records the error) when the compiler rejects the charter", async () => {
+    const llm: LlmClient = { async complete() { return { text: "{}", latencyMs: 0 }; } };
+    const sink = createArraySink();
+    const summary = await runTier({ runId: "r", tier: getTier("runetrading", 1)!, charter: "Do things.", llm, sink });
+    expect(summary.passedLevels).toBe(0);
+    const compiler = sink.messages.find((m) => m.kind === "decision" && m.record.source === "compiler");
+    expect(compiler?.kind === "decision" && compiler.record.error).toMatch(/strategy compile failed/);
+    const ends = sink.messages.filter((m) => m.kind === "level_end");
+    expect(ends.every((m) => m.kind === "level_end" && m.result.verdict.passed === false && m.replay.finalState.market?.finalPnl === 0)).toBe(true);
+  });
+
+  it("works with the fake LLM (default buy-and-hold strategy)", async () => {
+    const sink = createArraySink();
+    const summary = await runTier({ runId: "r", tier: getTier("runetrading", 1)!, charter: "Ride the trend.", llm: createFakeLlm(() => eastx3), sink });
+    expect(summary.passedLevels).toBe(3);
   });
 });
 

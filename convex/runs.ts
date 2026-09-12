@@ -1,11 +1,19 @@
 import { internalMutation, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
-import { runHost, runStatus } from "./schema";
+import { runHost, runSettings, runStatus } from "./schema";
 import { ensureSession } from "./sessions";
 import { requireUserId } from "./lib/auth";
-import { MODES, getTier, listTiers } from "../src/core/index";
-import type { ModeId, RunSummary, RunnerMessage, TierResult, TierSpec } from "../src/core/types";
+import {
+  MODES,
+  getTier,
+  listTiers,
+  redactInProgressMarketLevel,
+  redactMarketFrame,
+  validateMarketCharter,
+  validateRunSettings,
+} from "../src/core/index";
+import type { ModeId, RunSettings, RunSummary, RunnerMessage, TierResult, TierSpec } from "../src/core/types";
 import type { Doc, Id } from "./_generated/dataModel";
 
 function newRunId(): string {
@@ -53,8 +61,10 @@ export const create = mutation({
     mode: v.string(),
     tier: v.number(),
     charter: v.string(),
+    /** Rune trading only: indicator configuration, validated with validateRunSettings. */
+    settings: v.optional(runSettings),
   },
-  handler: async (ctx, { mode, tier, charter }): Promise<string> => {
+  handler: async (ctx, { mode, tier, charter, settings }): Promise<string> => {
     if (!MODES.some((m) => m.id === mode)) throw new Error(`Unknown mode: ${mode}`);
     if (!Number.isInteger(tier) || tier < 1) throw new Error(`Invalid tier: ${tier}`);
 
@@ -68,6 +78,13 @@ export const create = mutation({
     const trimmed = charter.trim();
     if (trimmed.length === 0) throw new Error("Charter is empty");
     if (charter.length > budget) throw new Error(`Charter is ${charter.length} chars; budget for this tier is ${budget}`);
+    let storedSettings: RunSettings | undefined;
+    if (mode === "runetrading") {
+      const charterErrors = validateMarketCharter(charter);
+      if (charterErrors.length) throw new Error(charterErrors.join(" "));
+      validateRunSettings(settings);
+      storedSettings = settings;
+    }
 
     const runId = newRunId();
     await ctx.db.insert("runs", {
@@ -79,6 +96,7 @@ export const create = mutation({
       currentTier: tier,
       ladder: [],
       charter,
+      ...(storedSettings ? { settings: storedSettings } : {}),
       status: "queued",
       // Real host is decided inside launch.run (process.env is only visible in actions).
       host: "inprocess",
@@ -258,25 +276,29 @@ export const bySession = query({
 export const levelRuns = query({
   args: { runId: v.string() },
   handler: async (ctx, { runId }) => {
-    if (!(await requireOwnedRun(ctx, runId))) return [];
+    const run = await requireOwnedRun(ctx, runId);
+    if (!run) return [];
     const rows = await ctx.db
       .query("levelRuns")
       .withIndex("by_run", (q) => q.eq("runId", runId))
       .collect();
-    return rows.sort((a, b) => a.order - b.order);
+    // Rune trading: seeds / hidden previews of unfinished levels never reach the client (future candles stay secret).
+    return rows.sort((a, b) => a.order - b.order).map((row) => redactInProgressMarketLevel(run.mode, row));
   },
 });
 
 export const frames = query({
   args: { runId: v.string(), levelId: v.string(), afterTick: v.optional(v.number()) },
   handler: async (ctx, { runId, levelId, afterTick }) => {
-    if (!(await requireOwnedRun(ctx, runId))) return [];
+    const run = await requireOwnedRun(ctx, runId);
+    if (!run) return [];
     const after = afterTick ?? -1;
-    return await ctx.db
+    const rows = await ctx.db
       .query("frames")
       .withIndex("by_run_level_tick", (q) => q.eq("runId", runId).eq("levelId", levelId).gt("tick", after))
       .order("asc")
       .take(500);
+    return rows.map((row) => redactMarketFrame(run.mode, row));
   },
 });
 

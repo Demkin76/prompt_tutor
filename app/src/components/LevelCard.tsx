@@ -2,7 +2,7 @@ import type { TierSpec } from "@core/types";
 import type { LevelRunDoc } from "../api";
 import { Legend } from "./Legend";
 
-const MODE_TITLE = { maze: "Maze", redfloor: "Red Floor", towerdefense: "Tower Defense" } as const;
+const MODE_TITLE = { maze: "Maze", redfloor: "Red Floor", towerdefense: "Tower Defense", runetrading: "Rune Trading" } as const;
 
 interface Props {
   tier: TierSpec;
@@ -42,10 +42,19 @@ export function LevelCard({ tier, activeLevelId, levelRuns, objectiveLevelId }: 
             <li key={i}>{r}</li>
           ))}
           <li>
-            Charter budget: {objLevel.promptBudget} characters. Sight radius: {objLevel.observation.radius}.
+            Charter budget: {objLevel.promptBudget} characters.
+            {tier.mode === "runetrading" ? (
+              <>
+                {" "}
+                {objLevel.env.params.candleCount ?? 120} candles · {((objLevel.env.params.feeBps ?? 10) / 100).toFixed(2)}% fee · starting balance{" "}
+                {objLevel.env.params.startingBalance ?? 10000}.
+              </>
+            ) : (
+              <> Sight radius: {objLevel.observation.radius}.</>
+            )}
           </li>
         </ul>
-        <h3>Tiles</h3>
+        <h3>{tier.mode === "runetrading" ? "Trading tools" : "Tiles"}</h3>
         <Legend mode={tier.mode} />
       </div>
       {opponent && (

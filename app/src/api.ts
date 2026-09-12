@@ -7,7 +7,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { anyApi } from "convex/server";
-import type { DecisionRecord, Frame, LevelRunResult, LevelSpec, ModeId, Replay, RunStatus, RunSummary, TierSpec, WorldState, TierResult } from "@core/types";
+import type { DecisionRecord, Frame, LevelRunResult, LevelSpec, ModeId, Replay, RunSettings, RunStatus, RunSummary, TierSpec, WorldState, TierResult } from "@core/types";
 import { buildTiers, MODES, mockStore } from "./mock";
 
 // ───────────────────────── Shapes returned by the backend ─────────────────────────
@@ -41,6 +41,8 @@ export interface RunDoc {
   host?: string;
   summary?: RunSummary;
   error?: string;
+  /** Rune trading: indicator settings frozen at deploy time. */
+  settings?: RunSettings;
 }
 
 export interface LevelRunDoc {
@@ -68,6 +70,8 @@ export interface CreateRunArgs {
   mode: ModeId;
   tier: number;
   charter: string;
+  /** Rune trading only: indicator configuration frozen for the run. */
+  settings?: RunSettings;
 }
 
 export interface GolemApi {
@@ -96,7 +100,7 @@ const convexApi: GolemApi = {
   },
   useCreateRun: () => {
     const m = useMutation(api.runs.create);
-    return useCallback(({ mode, tier, charter }: CreateRunArgs) => m({ mode, tier, charter }) as Promise<string>, [m]);
+    return useCallback(({ mode, tier, charter, settings }: CreateRunArgs) => m({ mode, tier, charter, ...(settings ? { settings } : {}) }) as Promise<string>, [m]);
   },
   useRun: (runId) => useQuery(api.runs.get, runId ? { runId } : "skip") as RunDoc | null | undefined,
   useLevelRuns: (runId) => useQuery(api.runs.levelRuns, runId ? { runId } : "skip") as LevelRunDoc[] | undefined,
@@ -142,7 +146,7 @@ const mockApi: GolemApi = {
     const v = useStoreVersion();
     return useMemo(() => {
       void v;
-      return runId ? mockStore.getLevelRuns(runId) : undefined;
+      return runId ? mockStore.getPublicLevelRuns(runId) : undefined;
     }, [v, runId]);
   },
   useFrames: (runId, levelId) => {

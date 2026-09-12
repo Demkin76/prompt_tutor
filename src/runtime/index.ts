@@ -1,7 +1,10 @@
 export type { Engine, Budget } from "./engine";
 export { buildSystemPrompt, buildUserPrompt, DECISION_JSON_SCHEMA, CHARTER_OPEN, CHARTER_CLOSE } from "./prompt";
 export { parseDecision, DecisionError, DEFAULT_STOP_ON } from "./decision";
-export { createXaiClient, createFakeLlm, LlmError } from "./llm";
+export { createXaiClient, createFakeLlm, LlmError, FAKE_MARKET_STRATEGY } from "./llm";
+export type { FakeLlmOptions } from "./llm";
 export { createArraySink, createConvexHttpSink, SinkError } from "./sink";
-export { runLevel, runTier } from "./episode";
+export { runLevel, runMarketLevel, runTier } from "./episode";
 export type { RunLevelOptions, RunLevelOutput, RunTierOptions } from "./episode";
+export { compileMarketStrategy, marketCompilerPrompt, MARKET_STRATEGY_JSON_SCHEMA } from "./marketCompiler";
+export type { CompiledMarketStrategy } from "./marketCompiler";

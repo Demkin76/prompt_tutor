@@ -5,14 +5,16 @@
  *   npx tsx scripts/run-local.ts --mode maze --tier 2 --fake            # scripted explorer instead of the LLM
  *   npx tsx scripts/run-local.ts --mode towerdefense --tier 1 --out app/public/demo/td-t1.json
  *   npx tsx scripts/run-local.ts --mode maze --ladder --random      # climb tiers while 3/3, fresh approved seeds
+ *   npx tsx scripts/run-local.ts --mode runetrading --tier 1 --fake # default charter + default indicators, fake compiler
+ *   npx tsx scripts/run-local.ts --mode runetrading --settings '{"indicators":[{"id":"rsi","enabled":true,"period":14}]}'
  *
  * Uses XAI_API_KEY / XAI_MODEL from .env unless --fake is given. Writes all runner messages to --out (demo replay fallback).
  */
 import "dotenv/config";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
-import { getTier, bfs, DIRS, DIR_DELTA, createRng, pickApprovedSeed, listTiers } from "../src/core/index";
-import type { AgentDecision, Action, Dir, LevelSpec, ModeId, Observation, RunnerMessage, Vec, TileType } from "../src/core/types";
+import { getTier, bfs, DIRS, DIR_DELTA, createRng, pickApprovedSeed, listTiers, defaultRunSettings, validateRunSettings, validateMarketCharter } from "../src/core/index";
+import type { AgentDecision, Action, Dir, LevelSpec, ModeId, Observation, RunnerMessage, RunSettings, Vec, TileType } from "../src/core/types";
 import { createFakeLlm, createXaiClient, runTier } from "../src/runtime/index";
 
 const args = new Map<string, string>();
@@ -30,16 +32,28 @@ for (let i = 0; i < argv.length; i++) {
 
 const mode = (args.get("mode") ?? "redfloor") as ModeId;
 const tierNo = Number(args.get("tier") ?? 1);
+const DEFAULT_MARKET_CHARTER =
+  "Go long when the close crosses above SMA(20) and RSI(14) is below 70. Close the position when the close crosses below SMA(20) or RSI(14) rises above 75. Otherwise hold.";
 const charter =
   args.get("charter") ??
   (mode === "towerdefense"
     ? "Place towers next to the longest straight stretch of the path, closest to the base first. Then start the wave."
-    : "Reach the altar. Never step on red tiles. If you carry a plank, place it on a red tile that blocks the only way. Explore unknown areas methodically and do not revisit dead ends.");
+    : mode === "runetrading"
+      ? DEFAULT_MARKET_CHARTER
+      : "Reach the altar. Never step on red tiles. If you carry a plank, place it on a red tile that blocks the only way. Explore unknown areas methodically and do not revisit dead ends.");
 const useFake = args.has("fake") || !process.env.XAI_API_KEY;
 const out = args.get("out");
 
 const tier = getTier(mode, tierNo);
 if (!tier) throw new Error(`unknown tier ${mode} ${tierNo}`);
+
+let settings: RunSettings | undefined;
+if (mode === "runetrading") {
+  settings = args.has("settings") ? (JSON.parse(args.get("settings")!) as RunSettings) : defaultRunSettings();
+  validateRunSettings(settings);
+  const charterErrors = validateMarketCharter(charter);
+  if (charterErrors.length) throw new Error(charterErrors.join(" "));
+}
 
 /** Scripted explorer that only uses the observation (no cheating), for smoke tests and demo recordings. */
 function makeScriptedDecider() {
@@ -133,7 +147,13 @@ const messages: RunnerMessage[] = [];
 const sink = {
   async push(msg: RunnerMessage) {
     messages.push(msg);
-    if (msg.kind === "decision") console.log(`  [${msg.record.tick}] ${msg.record.intent}${msg.record.error ? "  !! " + msg.record.error : ""} (${msg.record.latencyMs}ms)`);
+    // Strategy decisions fire once per candle (120 per market level); only the compiler call is worth a line.
+    if (msg.kind === "decision" && msg.record.source !== "strategy") console.log(`  [${msg.record.tick}] ${msg.record.intent}${msg.record.error ? "  !! " + msg.record.error : ""} (${msg.record.latencyMs}ms)`);
+    if (msg.kind === "frame" && msg.frame.state.market) {
+      const m = msg.frame.state.market;
+      const trade = msg.frame.events.find((e) => e.type === "position_opened" || e.type === "position_closed" || e.type === "forced_close" || e.type === "liquidated");
+      if (trade) console.log(`  candle ${m.candleIndex}/${m.candlesTotal}: ${trade.type}${trade.data?.side ? " " + trade.data.side : ""} balance=${m.balance.toFixed(2)} realized=${m.realizedPnl.toFixed(2)}`);
+    }
     if (msg.kind === "level_start") console.log(`\n== ${msg.levelId} seed=${msg.seed}`);
     if (msg.kind === "level_end") console.log(`   -> ${msg.result.verdict.passed ? "PASS" : "FAIL"} ticks=${msg.result.ticks} calls=${msg.result.llmCalls} score=${msg.result.levelScore} :: ${msg.result.verdict.reasons.join("; ")}`);
     if (msg.kind === "error") console.log("ERROR", msg.message);
@@ -149,12 +169,13 @@ const pickSeed = args.has("random")
     }
   : undefined;
 console.log(`mode=${mode} tier=${tierNo} llm=${useFake ? "scripted" : process.env.XAI_MODEL ?? "grok-4-fast"} charter(${charter.length})="${charter}"`);
+if (settings) console.log(`settings: ${settings.indicators.filter((i) => i.enabled).map((i) => `${i.id}(${i.period ?? [i.fastPeriod, i.slowPeriod, i.signalPeriod].filter(Boolean).join("/")})`).join(", ")}`);
 const maxTier = listTiers(mode).length;
 let t = tierNo;
 let total = 0, totalLevels = 0, score = 0;
 for (;;) {
   const spec = getTier(mode, t)!;
-  const summary = await runTier({ runId: `local-${Date.now()}`, tier: spec, charter, llm, sink, pickSeed });
+  const summary = await runTier({ runId: `local-${Date.now()}`, tier: spec, charter, llm, sink, pickSeed, settings });
   total += summary.passedLevels; totalLevels += summary.totalLevels; score += summary.score;
   console.log(`\nTIER ${t}: ${summary.passedLevels}/${summary.totalLevels} passed, score=${summary.score}${summary.tierUnlocked ? " — tier unlocked" : ""}`);
   if (!args.has("ladder") || !summary.tierUnlocked || t >= maxTier) break;

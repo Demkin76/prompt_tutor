@@ -57,6 +57,10 @@ export const ACTION_DOCS: Record<ActionType, { shape: string; doc: string }> = {
     doc: "build a tower on a buildable slot (tower defense).",
   },
   start_wave: { shape: '{"type":"start_wave","args":{}}', doc: "start the next enemy wave (tower defense)." },
+  long: { shape: '{"type":"long","args":{}}', doc: "open or keep a full-balance long position (rune trading)." },
+  short: { shape: '{"type":"short","args":{}}', doc: "open or keep a full-balance short position (rune trading)." },
+  close: { shape: '{"type":"close","args":{}}', doc: "close the current position (rune trading)." },
+  hold: { shape: '{"type":"hold","args":{}}', doc: "leave the current position unchanged (rune trading)." },
 };
 
 const STOP_ON_DOCS: Record<StopOn, string> = {
@@ -156,7 +160,7 @@ export const DECISION_JSON_SCHEMA: Record<string, unknown> = {
         properties: {
           type: {
             type: "string",
-            enum: ["move", "inspect", "wait", "interact", "pickup", "place", "say", "place_tower", "start_wave"],
+            enum: ["move", "inspect", "wait", "interact", "pickup", "place", "say", "place_tower", "start_wave", "long", "short", "close", "hold"],
           },
           args: {
             type: "object",

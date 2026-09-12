@@ -4,10 +4,41 @@ import { compareRuns, scoreLevel, summarizeRun } from "./scoring";
 import { step } from "./sim";
 import { stateFromAscii, testSpec } from "./testutil";
 import type { LevelRunResult, SimEvent, Verdict } from "./types";
+import { getLevel } from "./levels";
+import { generateLevel } from "./generators/index";
 
 const spec = testSpec("redfloor");
 
 describe("verify", () => {
+  it("passes rune trading only on strictly positive final net P&L", () => {
+    const marketSpec = getLevel("runetrading-t1-l1")!;
+    const initial = generateLevel(marketSpec);
+    let profitable = initial;
+    const events: SimEvent[] = [];
+    for (let index = 0; index < 120; index++) {
+      const result = step(marketSpec, profitable, { type: index === 0 ? "long" : "hold" });
+      profitable = result.state;
+      events.push(...result.events);
+    }
+    const won = verify(marketSpec, initial, profitable, events);
+    expect(won.passed).toBe(true);
+    expect(won.score).toBeGreaterThan(0);
+    expect(won.reasons[0]).toMatch(/net P&L/i);
+    expect(scoreLevel(marketSpec, won, 120, 1, 100)).toBeCloseTo(100 - 1 - 2);
+
+    const flat = structuredClone(profitable);
+    flat.status = "lost";
+    flat.market!.finalPnl = 0;
+    const lost = verify(marketSpec, initial, flat, []);
+    expect(lost.passed).toBe(false);
+    expect(lost.score).toBe(0);
+    expect(lost.reasons[0]).toMatch(/not positive/);
+
+    const unfinished = verify(marketSpec, initial, { ...initial, status: "out_of_budget" }, []);
+    expect(unfinished.passed).toBe(false);
+    expect(unfinished.reasons[0]).toMatch(/not completed/);
+  });
+
   it("passes on goal without hazard", () => {
     const s = stateFromAscii(["@A"]);
     const r = step(spec, s, { type: "move", args: { dir: "east" } });

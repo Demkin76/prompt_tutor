@@ -31,12 +31,24 @@ export function describeAction(a: Action): string {
       return `builds a ${a.args.towerType} tower at ${fmtPos(a.args.pos)}.`;
     case "start_wave":
       return "starts the wave.";
+    case "long":
+      return "goes long (or keeps the long).";
+    case "short":
+      return "goes short (or keeps the short).";
+    case "close":
+      return "closes the position.";
+    case "hold":
+      return "holds.";
     default:
       return "acts.";
   }
 }
 
-const BAD_EVENTS = new Set(["hazard_entered", "base_destroyed", "budget_exhausted", "invalid_action", "door_locked", "tower_limit", "enemy_leaked"]);
+const BAD_EVENTS = new Set(["hazard_entered", "base_destroyed", "budget_exhausted", "invalid_action", "door_locked", "tower_limit", "enemy_leaked", "liquidated"]);
+const money = (v: unknown): string => {
+  const n = Number(v ?? 0);
+  return `${n > 0 ? "+" : ""}${n.toFixed(2)}`;
+};
 
 export function describeEvent(e: SimEvent): string {
   const d = e.data ?? {};
@@ -85,6 +97,20 @@ export function describeEvent(e: SimEvent): string {
       return "All waves cleared!";
     case "budget_exhausted":
       return "Out of budget.";
+    case "position_opened":
+      return `${d.side === "short" ? "Short" : "Long"} opened${typeof d.price === "number" ? ` at ${d.price.toFixed(2)}` : ""}.`;
+    case "position_closed":
+      return `${d.side === "short" ? "Short" : d.side === "long" ? "Long" : "Position"} closed${typeof d.price === "number" ? ` at ${d.price.toFixed(2)}` : ""}: ${money(d.pnl)} gross.`;
+    case "fee_charged":
+      return `Fee paid: ${Number(d.fee ?? 0).toFixed(2)}.`;
+    case "candle_revealed":
+      return `Candle ${d.candleIndex ?? ""} revealed${typeof d.close === "number" ? ` — close ${d.close.toFixed(2)}` : ""}.`;
+    case "forced_close":
+      return "Final candle: open position force-closed.";
+    case "market_complete":
+      return `Market complete: ${money(d.finalPnl)} net P&L${typeof d.balance === "number" ? `, balance ${d.balance.toFixed(2)}` : ""}.`;
+    case "liquidated":
+      return "Balance wiped out. Position liquidated.";
     default:
       return coreDescribeEvent(e);
   }
@@ -110,9 +136,12 @@ export function buildLog(decisions: DecisionRow[], frames: FrameRow[], uptoTick:
   for (const f of frames) {
     if (f.tick > uptoTick) break;
     pushDecisions(f.tick);
+    // Market: a plain "hold" that only revealed the next candle is noise — 120 of them would bury the trades.
+    const quietHold = f.frame.action.type === "hold" && f.frame.events.every((e) => e.type === "candle_revealed");
+    if (quietHold) continue;
     lines.push({ key: `a${f.tick}`, tick: f.tick, kind: "act", text: `Acts: ${describeAction(f.frame.action)}` });
     for (const e of f.frame.events) {
-      if (e.type === "moved") continue; // implied by the action line
+      if (e.type === "moved" || e.type === "candle_revealed") continue; // implied by the action line
       lines.push({ key: `e${f.tick}-${lines.length}`, tick: f.tick, kind: BAD_EVENTS.has(e.type) ? "bad" : "event", text: `Event: ${describeEvent(e)}` });
     }
   }
