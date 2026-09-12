@@ -1,5 +1,6 @@
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
+import { authTables } from "@convex-dev/auth/server";
 
 export const runStatus = v.union(
   v.literal("queued"),
@@ -11,16 +12,22 @@ export const runStatus = v.union(
 export const runHost = v.union(v.literal("daytona"), v.literal("inprocess"));
 
 export default defineSchema({
+  ...authTables,
+
   sessions: defineTable({
+    userId: v.optional(v.id("users")),
     sessionId: v.string(),
     /** Record<ModeId, number> — highest unlocked tier per mode (default 1). */
     progress: v.any(),
     /** Record<`${mode}-${tier}`, { score, passedLevels, charter }> */
     best: v.any(),
     updatedAt: v.number(),
-  }).index("by_sessionId", ["sessionId"]),
+  })
+    .index("by_sessionId", ["sessionId"])
+    .index("by_userId", ["userId"]),
 
   runs: defineTable({
+    userId: v.optional(v.id("users")),
     runId: v.string(),
     sessionId: v.string(),
     mode: v.string(),
@@ -40,7 +47,8 @@ export default defineSchema({
     finishedAt: v.optional(v.number()),
   })
     .index("by_runId", ["runId"])
-    .index("by_session", ["sessionId"]),
+    .index("by_sessionId", ["sessionId"])
+    .index("by_userId", ["userId"]),
 
   levelRuns: defineTable({
     runId: v.string(),

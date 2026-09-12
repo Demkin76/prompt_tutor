@@ -40,6 +40,24 @@ Convex action (same code, same results).
 
 Without `VITE_CONVEX_URL` the UI starts in **mock mode** with a scripted run, so the screens can be demoed offline.
 
+## Auth administration
+
+Public sign-up is disabled. Register an account through the authenticated Convex CLI:
+
+```bash
+npm run auth:register:dev -- person@example.com
+npm run auth:register:prod -- person@example.com
+```
+
+The script prompts for the password and initializes `ADMIN_REGISTRATION_SECRET` on the selected deployment if needed.
+
+Rotate the JWT signing pair (active access tokens will be invalidated):
+
+```bash
+npm run auth:rotate:dev
+npm run auth:rotate:prod
+```
+
 ## Deploy (CI)
 
 `.github/workflows/deploy.yml` runs two jobs on every push to `main`:

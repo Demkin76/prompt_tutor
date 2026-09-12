@@ -24,7 +24,7 @@ function RestoreRun({ runId, onRestore, onHome }: { runId: string; onRestore: (r
   return <div className="restore-run" role="status">{run === null ? <><h1>Run unavailable</h1><p>This run may be from an earlier demo session.</p><button className="btn primary" onClick={onHome}>Open the facility</button></> : "Restoring the run…"}</div>;
 }
 
-export function App() {
+export function App({ onSignOut }: { onSignOut?: () => void }) {
   const sessionId = useMemo(getSessionId, []);
   const ensure = golemApi.useEnsureSession();
   const session = golemApi.useSession(sessionId);
@@ -71,6 +71,7 @@ export function App() {
         <div className="mode-tabs" aria-label="Game modes">
           {(["redfloor", "keymaster"] as ModeId[]).map(mode => <button key={mode} className={route.s !== "home" && route.mode === mode ? "active" : ""} disabled={route.s === "run" || !!resumeId} onClick={() => setRoute({ s: "level", mode, tier: 1, charter: loadCharter(mode, 1), attempts: 0 })}>{mode === "redfloor" ? "01" : "02"} / {MODE_TITLE[mode]}</button>)}
           <button disabled={route.s === "run" || !!resumeId} onClick={() => setRoute({ s: "home" })}>All modes ↗</button>
+          {onSignOut && <button type="button" onClick={onSignOut}>Sign out</button>}
         </div>
       </header>
       {BACKEND === "mock" && <p className="demo-notice" role="note">Offline demonstration · A sample strategy plays the real simulation. Your charter is not evaluated by an AI model.</p>}

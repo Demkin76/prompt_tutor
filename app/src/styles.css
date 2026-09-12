@@ -778,6 +778,40 @@ ul.rules li {
   border: 3px solid #000;
 }
 
+.auth-shell {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+}
+
+.auth-card {
+  width: min(420px, 100%);
+  display: grid;
+  gap: 14px;
+}
+
+.auth-card label {
+  display: grid;
+  gap: 6px;
+  font-family: var(--font-head);
+  font-size: 9px;
+}
+
+.auth-card input {
+  width: 100%;
+  padding: 10px;
+  color: var(--parch-ink);
+  background: var(--parch-100);
+  border: 3px solid #2a1c0c;
+  font-size: 20px;
+}
+
+.auth-card .btn.ghost {
+  color: var(--parch-ink);
+  border-color: var(--parch-ink-soft);
+}
+
 @media (max-width: 1080px) {
   .layout {
     grid-template-columns: 1fr;

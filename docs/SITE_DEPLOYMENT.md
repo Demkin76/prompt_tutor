@@ -32,6 +32,10 @@ The build follows the [Convex deploy command](https://docs.convex.dev/cli/refere
 
 For another static host, first run `npm run build:runner`, then `npx convex deploy --cmd "node scripts/write-frontend-env.mjs" --cmd-url-env-var-name VITE_CONVEX_URL`. Finally run `npm run build` and publish `dist/`. No SPA catch-all rewrite is required: all five `.html` routes exist. Set `BASE_URL=/your-subdirectory/` when hosting under a subpath. Leave it unset at a domain root.
 
+## Authentication
+
+Live games use the existing Convex Auth sign-in flow. The application loads game queries only after authentication, and sessions and runs remain owned by the authenticated account. Account registration and key rotation use the existing `auth:*` administration scripts documented in the README. Offline demos remain available without an account.
+
 ## Routes
 
 - `index.html`, `levels.html`, `technology.html`, `world.html`: website.
