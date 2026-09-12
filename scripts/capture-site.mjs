@@ -11,8 +11,8 @@ import { mkdir } from "node:fs/promises";
  await mkdir("test-results", { recursive: true });
  try {
   await page.goto(new URL('play.html#red', process.env.CAPTURE_URL ?? 'http://127.0.0.1:5180/').href);
-  await page.locator('.connection').waitFor();
-  if (!await page.getByText('OFFLINE DEMO', { exact: true }).isVisible()) throw new Error('Screenshots must use the offline demo; refusing to launch a paid live run.');
+  await page.locator('.site-nav').waitFor();
+  if (!await page.getByText('Offline demonstration').isVisible()) throw new Error('Screenshots must use the offline demo; refusing to launch a paid live run.');
   await page.getByRole('textbox').fill('Reach the altar. Never step on dangerous red tiles. Explore safe routes and remember blocked paths.');
   await capture('charter-editor.png');
   await page.getByRole('button',{name:'Deploy',exact:true}).click();

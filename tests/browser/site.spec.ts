@@ -32,7 +32,7 @@ test("Red Floor: charter lock, results and replay", async ({ page }) => {
   await page.getByRole("textbox").fill("Reach the altar. Never step on red tiles.");
   await page.getByRole("button", { name: "Deploy", exact: true }).click();
   await expect(page.getByText("LOCKED", { exact: true })).toBeVisible();
-  await expect(page.getByRole("button", { name: "01 / Red Floor" })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "All modes ↗" })).toBeDisabled();
   for (let i = 0; i < 30 && !await page.getByRole("button", { name: "See results" }).isVisible(); i++) await page.clock.runFor(10000);
   await page.getByRole("button", { name: "See results" }).click();
   await expect(page.getByText(/LEVELS PASSED/)).toBeVisible();

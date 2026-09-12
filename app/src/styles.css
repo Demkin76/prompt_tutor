@@ -322,15 +322,27 @@ ul.rules li {
 
 .modes {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  column-gap: 16px;
+  row-gap: 8px;
+  margin-top: 8px;
+}
+
+.mode-card {
+  display: grid;
+  grid-template-rows: subgrid;
+  grid-row: span 3;
+}
+
+.mode-card h2 {
+  margin-bottom: 0;
 }
 
 .mode-card .tagline {
   font-style: italic;
   color: var(--parch-ink-soft);
-  margin-bottom: 12px;
-  min-height: 24px;
+  margin: 0;
+  line-height: 1.45;
 }
 
 .ladder {
@@ -365,7 +377,12 @@ ul.rules li {
 }
 
 .tier-btn .icon {
-  font-size: 22px;
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  line-height: 1;
   text-align: center;
 }
 
@@ -376,6 +393,7 @@ ul.rules li {
 }
 
 .tier-btn .best {
+  min-width: 8.5rem;
   font-size: 17px;
   text-align: right;
   color: var(--green-700);

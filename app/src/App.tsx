@@ -62,16 +62,14 @@ export function App({ onSignOut }: { onSignOut?: () => void }) {
     <div className="app">
       <a className="skip-link" href="#facility" onClick={e => { e.preventDefault(); document.getElementById("facility")?.focus(); }}>Skip to game</a>
       <nav className="site-nav" aria-label="Main navigation">
-        <a className="site-brand" href="index.html"><span className="site-mark" aria-hidden>▣</span> GOLEM</a>
+        <a className="site-brand" href="index.html" aria-label="GOLEM home"><span className="site-mark" aria-hidden><i /></span> GOLEM</a>
         <div className="site-links"><a href="index.html">Home</a><a href="levels.html">Levels</a><a href="technology.html">Technology</a><a href="world.html">World</a></div>
-        <span className={`connection ${BACKEND}`}><i />{BACKEND === "convex" ? "LIVE AGENT" : "OFFLINE DEMO"}</span>
+        {onSignOut ? <button type="button" className="site-signout" onClick={onSignOut}>Sign out</button> : <span className="site-nav-end" aria-hidden />}
       </nav>
       <header className="facility-header" id="facility" tabIndex={-1}>
-        <div><div className="facility-kicker">THE TESTING FACILITY / {route.s === "home" ? "SELECT A WORLD" : crumbs.join(" / ")}</div><h1>Write the law. <span>Observe the outcome.</span></h1></div>
+        {route.s !== "home" && <h1 className="facility-kicker">{crumbs.join(" / ")}</h1>}
         <div className="mode-tabs" aria-label="Game modes">
-          <button className={route.s !== "home" && route.mode === "redfloor" ? "active" : ""} disabled={route.s === "run" || !!resumeId} onClick={() => setRoute({ s: "level", mode: "redfloor", tier: 1, charter: loadCharter("redfloor", 1), attempts: 0 })}>01 / Red Floor</button>
           <button disabled={route.s === "run" || !!resumeId} onClick={() => setRoute({ s: "home" })}>All modes ↗</button>
-          {onSignOut && <button type="button" onClick={onSignOut}>Sign out</button>}
         </div>
       </header>
       {BACKEND === "mock" && <p className="demo-notice" role="note">Offline demonstration · A sample strategy plays the real simulation. Your charter is not evaluated by an AI model.</p>}
