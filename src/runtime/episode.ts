@@ -22,7 +22,7 @@ import type {
   Sink,
   StopOn,
   TierSpec,
-} from "@core/types";
+} from "../core/types";
 import type { Engine } from "./engine";
 import { DecisionError, parseDecision } from "./decision";
 import { DECISION_JSON_SCHEMA, buildSystemPrompt, buildUserPrompt } from "./prompt";

@@ -3,7 +3,7 @@
  *  - createArraySink: in-memory (tests; the in-process Convex fallback can wrap ctx.runMutation itself).
  *  - createConvexHttpSink: POST ${CONVEX_URL}/api/mutation {path:"runs:ingest", args:{runId, message}, format:"json"}.
  */
-import type { RunnerMessage, Sink } from "@core/types";
+import type { RunnerMessage, Sink } from "../core/types";
 import type { FetchLike } from "./llm";
 
 export function createArraySink(): Sink & { messages: RunnerMessage[] } {

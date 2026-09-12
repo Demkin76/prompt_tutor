@@ -7,8 +7,8 @@
  *   compatible (every property required, optional args are nullable, no additionalProperties);
  *   finer validation (lengths, per-action arg shapes) happens in `parseDecision`.
  */
-import type { ActionType, LevelSpec, Observation, StopOn } from "@core/types";
-import { DIRS } from "@core/types";
+import type { ActionType, LevelSpec, Observation, StopOn } from "../core/types";
+import { DIRS } from "../core/types";
 
 export const STOP_ON_VALUES: StopOn[] = [
   "new_entity",
