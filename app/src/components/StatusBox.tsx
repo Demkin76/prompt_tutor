@@ -39,7 +39,7 @@ export function StatusBox({ state, llmCalls, levelIndex, levelsTotal, tier, atte
         {state && state.agent.inventory.length > 0 && (
           <>
             <dt>Carrying</dt>
-            <dd>{state.agent.inventory.join(", ")}</dd>
+            <dd>{state.agent.inventory.map(i => i === "key" ? "🔑 ×1" : i).join(", ")}</dd>
           </>
         )}
         {td && (

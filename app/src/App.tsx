@@ -15,7 +15,7 @@ type Route =
   | { s: "result"; runId: string; mode: ModeId; tier: number; charter: string; attempts: number }
   | { s: "replay"; runId: string; levelId: string; mode: ModeId; tier: number; charter: string; attempts: number };
 
-const MODE_TITLE: Record<ModeId, string> = { maze: "Maze", redfloor: "Red Floor", towerdefense: "Tower Defense" };
+const MODE_TITLE: Record<ModeId, string> = { keymaster: "Keymaster", maze: "Maze", redfloor: "Red Floor", towerdefense: "Tower Defense" };
 
 export function App() {
   const sessionId = useMemo(getSessionId, []);
@@ -28,15 +28,15 @@ export function App() {
   }, [ensure, sessionId]);
 
   const crumbs: string[] = [];
-  if (route.s !== "home") crumbs.push(MODE_TITLE[route.mode], `Tier ${route.tier}`);
+  if (route.s !== "home") crumbs.push(MODE_TITLE[route.mode], route.mode === "keymaster" ? "Уровень 2" : `Tier ${route.tier}`);
   if (route.s === "run") crumbs.push("Run");
   if (route.s === "result") crumbs.push("Results");
   if (route.s === "replay") crumbs.push("Replay");
 
   return (
-    <div className="app">
+    <div className={`app ${route.s !== "home" && route.mode === "keymaster" ? "keymaster" : ""}`}>
       <div className="topbar">
-        <div className="brand" onClick={() => setRoute({ s: "home" })} title="Home">
+        <div className="brand" onClick={() => { if (!(route.s === "run" && route.mode === "keymaster")) setRoute({ s: "home" }); }} title={route.s === "run" && route.mode === "keymaster" ? "Устав заблокирован до завершения попытки" : "Home"}>
           <h1>GOLEM</h1>
           <span className="tag">write. animate. observe.</span>
         </div>
@@ -85,6 +85,7 @@ export function App() {
           onRetry={() => setRoute({ s: "level", mode: route.mode, tier: route.tier, charter: route.charter, attempts: route.attempts })}
           onReplay={(levelId) => setRoute({ ...route, s: "replay", levelId })}
           onHome={() => setRoute({ s: "home" })}
+          onKeymaster={() => setRoute({ s: "level", mode: "keymaster", tier: 1, charter: loadCharter("keymaster", 1), attempts: 0 })}
         />
       )}
       {route.s === "replay" && (

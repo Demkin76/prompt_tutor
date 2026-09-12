@@ -189,6 +189,17 @@ describe("runLevel", () => {
     expect(kinds(sink.messages)).toEqual(["level_start", "decision", "frame", "decision", "frame", "level_end"]);
   });
 
+  it("does not retry past the remaining LLM call budget", async () => {
+    const engine = makeCorridorEngine();
+    const sink = createArraySink();
+    const spec = makeSpec({ limits: { ticks: 20, llmCalls: 1, wallClockMs: 60000 } });
+    const { result } = await runLevel({ runId: "r", spec, charter: "", engine, sink,
+      llm: { async complete() { return { text: "invalid", latencyMs: 0 }; } },
+    });
+    expect(result.llmCalls).toBe(1);
+    expect(result.verdict.passed).toBe(false);
+  });
+
   it("stops at the tick limit", async () => {
     const engine = makeCorridorEngine();
     const sink = createArraySink();
@@ -204,12 +215,13 @@ describe("runLevel", () => {
     const engine = makeCorridorEngine();
     const sink = createArraySink();
     let t = 0;
-    const now = () => (t += 1000);
+    const now = () => t;
     const waits: AgentDecision = { intent: "idle", plan: [{ type: "wait" }], stopOn: [] };
     const spec = makeSpec({ limits: { ticks: 100, llmCalls: 100, wallClockMs: 5000 } });
-    const { result } = await runLevel({ runId: "r", spec, charter: "", llm: createFakeLlm(() => waits), sink, engine, now });
-    expect(result.ticks).toBeLessThan(10);
-    expect(result.ticks).toBeGreaterThan(0);
+    const { result, replay } = await runLevel({ runId: "r", spec, charter: "", llm: createFakeLlm(() => { t += 2000; return waits; }), sink, engine, now });
+    expect(result.ticks).toBe(2);
+    expect(result.llmCalls).toBe(3);
+    expect(replay.finalState.status).toBe("out_of_budget");
   });
 });
 

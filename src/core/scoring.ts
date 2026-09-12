@@ -7,7 +7,9 @@ import type { LevelRunResult, LevelSpec, RunSummary, Verdict } from "./types";
 export function scoreLevel(spec: LevelSpec, verdict: Verdict, ticks: number, llmCalls: number, charterLength: number): number {
   if (!verdict.passed) return 0;
   const s = spec.scoring;
-  const raw = s.completion + s.perTick * ticks + s.perLlmCall * llmCalls + s.perChar * charterLength;
+  const calls = spec.mode === "keymaster" ? Math.max(0, llmCalls - 1) : llmCalls;
+  const bonus = spec.mode === "keymaster" ? verdict.evidence.filter(e => e.note === "bonus").reduce((n, e) => n + Number(e.value), 0) : 0;
+  const raw = s.completion + s.perTick * ticks + s.perLlmCall * calls + s.perChar * charterLength + bonus;
   return Math.max(0, Math.round(raw * 100) / 100);
 }
 
@@ -18,7 +20,7 @@ export function summarizeRun(results: LevelRunResult[]): RunSummary {
   return {
     passedLevels,
     totalLevels,
-    score,
+    score: score + (totalLevels === 3 && passedLevels === 3 && results.every(r => r.levelId.startsWith("keymaster-")) ? 100 : 0),
     tierUnlocked: totalLevels > 0 && passedLevels === totalLevels,
     levels: results,
   };

@@ -55,7 +55,7 @@ export function Replay({ runId, levelId, mode, tier, onBack, onHome }: Props) {
   if (run === null) return <div className="error">Run not found.</div>;
   if (!run || !tierSpec || !lr || !frames) return <div className="loading">rewinding the tape</div>;
 
-  const state = frame?.frame.state ?? initial;
+  const state = pos === total && lr.replay ? lr.replay.finalState : frame?.frame.state ?? initial;
   const tick = frame?.tick ?? 0;
   const lines = buildLog(decisions, frames, tick);
   const intent = [...decisions].filter((d) => d.tick <= tick).pop()?.record.intent;
@@ -118,7 +118,7 @@ export function Replay({ runId, levelId, mode, tier, onBack, onHome }: Props) {
         </div>
       </div>
       <div className="col">
-        <CharterLocked value={lr.replay?.charter ?? run.charter} />
+        <CharterLocked keymaster={mode === "keymaster"} value={lr.replay?.charter ?? run.charter} />
         <GolemLog lines={lines} emptyText="Press play." />
         <StatusBox state={state} llmCalls={decisions.filter((d) => d.tick <= tick).length} levelIndex={lr.order + 1} levelsTotal={3} tier={tier} />
       </div>

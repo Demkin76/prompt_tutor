@@ -372,6 +372,9 @@ export const ASSETS: Record<string, DrawFn> = {
   plank: drawPlank,
   "item.key": drawKey,
   key: drawKey,
+  "obj.door.closed": drawDoor,
+  "obj.door.open": drawDoor,
+  "obj.crate": drawCrate,
   "prop.door": drawDoor,
   door: drawDoor,
   "prop.lever": drawLever,
@@ -477,6 +480,10 @@ export function drawWorld(ctx: Ctx, state: WorldState, opts: DrawWorldOpts): voi
     drawAsset(ctx, "unit.golem", ax * s, ay * s, s, null, state.agent.facing, anim, "golem");
   }
 
+  if (state.keymaster && state.entities.find(e => e.kind === "golem")?.visual.animation === "interact") {
+    ctx.fillStyle = "#ffd36b";
+    for (const [dx, dy] of [[0.1, 0.2], [0.8, 0.1], [0.9, 0.7]]) ctx.fillRect((ax + dx) * s, (ay + dy) * s, 3, 3);
+  }
   // Dim remembered-but-not-visible tiles.
   if (seenSet) {
     ctx.fillStyle = "rgba(0,0,0,0.55)";

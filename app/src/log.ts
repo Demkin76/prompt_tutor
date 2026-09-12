@@ -1,3 +1,4 @@
+import { describeEvent as coreDescribeEvent } from "@core/observation";
 import type { Action, Frame, SimEvent, Vec } from "@core/types";
 import type { DecisionRow, FrameRow } from "./api";
 
@@ -49,7 +50,7 @@ export function describeEvent(e: SimEvent): string {
     case "goal_reached":
       return "Reached the altar!";
     case "picked_up":
-      return `Picked up ${d.item ?? "an item"}.`;
+      return `Picked up ${d.kind ?? d.item ?? "an item"}.`;
     case "placed":
       return `Placed a plank at ${fmtPos(d.pos)}. Red floor bridged.`;
     case "door_opened":
@@ -85,7 +86,7 @@ export function describeEvent(e: SimEvent): string {
     case "budget_exhausted":
       return "Out of budget.";
     default:
-      return e.type;
+      return coreDescribeEvent(e);
   }
 }
 

@@ -17,6 +17,7 @@ export const STOP_ON_VALUES: StopOn[] = [
   "goal_visible",
   "item_visible",
   "plan_done",
+  "state_changed",
 ];
 
 export const CHARTER_OPEN = "<<<CHARTER>>>";
@@ -28,6 +29,7 @@ export const USER_PROMPT_TAIL = "Reply with the JSON decision object only.";
 /** Exact arg shape + one-line meaning for every action type. */
 export const ACTION_DOCS: Record<ActionType, { shape: string; doc: string }> = {
   move: { shape: '{"type":"move","args":{"dir":"north|south|east|west"}}', doc: "step one tile in a direction." },
+  inspect: { shape: '{"type":"inspect","args":{"dir":"north|south|east|west"}}', doc: "describe the adjacent object without changing it." },
   wait: { shape: '{"type":"wait","args":{}}', doc: "do nothing for one tick." },
   interact: {
     shape: '{"type":"interact","args":{"dir":"north|south|east|west"}}',
@@ -55,6 +57,7 @@ const STOP_ON_DOCS: Record<StopOn, string> = {
   hazard_detected: "a hazard tile becomes visible",
   goal_visible: "the goal (altar / base) becomes visible",
   item_visible: "a pickable item becomes visible",
+  state_changed: "inventory or door state changed, or an interaction failed",
   plan_done: "no early stop; only when the plan is exhausted",
 };
 
@@ -142,7 +145,7 @@ export const DECISION_JSON_SCHEMA: Record<string, unknown> = {
         properties: {
           type: {
             type: "string",
-            enum: ["move", "wait", "interact", "pickup", "place", "say", "place_tower", "start_wave"],
+            enum: ["move", "inspect", "wait", "interact", "pickup", "place", "say", "place_tower", "start_wave"],
           },
           args: {
             type: "object",

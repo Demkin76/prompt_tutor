@@ -177,7 +177,7 @@ async function applyRunToSession(
   const best: Record<string, { score: number; passedLevels: number; charter: string }> = { ...(session.best ?? {}) };
 
   const unlocked = Number(progress[mode] ?? 1);
-  if (summary.tierUnlocked && unlocked === tier) progress[mode] = tier + 1;
+  if (summary.tierUnlocked && unlocked === tier && getTier(mode as ModeId, tier + 1)) progress[mode] = tier + 1;
 
   const key = `${mode}-${tier}`;
   const prev = best[key];

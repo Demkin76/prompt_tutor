@@ -27,6 +27,38 @@ export function verify(spec: LevelSpec, initialState: WorldState, finalState: Wo
   let passed = false;
   let score = 0;
 
+  if (spec.mode === "keymaster") {
+    const collected = events.find(e => e.type === "item_collected" && e.data?.item === "item.key");
+    const opened = events.find(e => e.type === "door_opened" && e.data?.with === "key");
+    const reached = eventually(events, "altar_reached");
+    const altar = initialState.tiles.indexOf("altar");
+    const atAltar = finalState.agent.pos[1] * finalState.size[0] + finalState.agent.pos[0] === altar;
+    const door = finalState.entities.find(e => e.kind === "door");
+    passed = !!collected && !!opened && !!reached && collected.tick < opened.tick && opened.tick < reached.tick
+      && atAltar && door?.props.open === true && door.props.locked === false && finalState.status === "won"
+      && finalState.agent.alive && finalState.keymaster?.key === "consumed";
+    if (collected) reasons.push("Ключ найден и подобран");
+    if (opened) reasons.push("Дверь открыта ключом");
+    if (reached && atAltar) reasons.push("Алтарь достигнут");
+    if (!passed) {
+      if (!collected) reasons.push("Голем не подобрал ключ. Устав должен разрешать поиск и использование полезных предметов.");
+      else if (!opened) reasons.push("Ключ получен, но дверь не открыта. Нужно вернуться к обнаруженному препятствию и использовать предмет.");
+      else if (!reached) reasons.push("Путь открыт, но голем не дошёл до алтаря.");
+      else reasons.push("Нарушен порядок действий или итоговое состояние мира.");
+      if (events.some(e => e.type === "agent_stuck")) reasons.push("Голем повторял действия без прогресса.");
+      if (finalState.status === "out_of_budget") reasons.push("Исчерпан бюджет действий, вызовов модели или времени.");
+    }
+    for (const e of [collected, opened, reached]) if (e) evidence.push({ type: "event", value: e });
+    evidence.push({ type: "state", value: { atAltar, doorOpen: door?.props.open === true, key: finalState.keymaster?.key ?? "world" } });
+    if (passed && collected && opened) {
+      const priorMoves = events.filter(e => e.type === "moved" && e.tick < collected.tick);
+      const positions = priorMoves.map(e => JSON.stringify(e.data?.to));
+      if (new Set(positions).size === positions.length) evidence.push({ type: "state", value: 100, note: "bonus" });
+      if (!events.some(e => e.type === "interaction_failed" && e.tick > collected.tick && e.tick < opened.tick))
+        evidence.push({ type: "state", value: 100, note: "bonus" });
+    }
+    return { passed, score: passed ? 1 : 0, confidence: 1, reasons, evidence };
+  }
   if (spec.mode === "towerdefense") {
     const cleared = eventually(events, "all_waves_cleared");
     const destroyed = eventually(events, "base_destroyed");

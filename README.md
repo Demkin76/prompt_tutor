@@ -5,13 +5,14 @@ three hidden levels of the current tier by that charter. Pass all three to unloc
 deterministic, replayable benchmark.
 
 Modes: **Maze** (fog-of-war pathfinding), **Red Floor** (deadly tiles, planks, keys, levers, crates; narrow vision on tier 3),
+**Keymaster** (level 2: key → locked door → exit, with three hidden maps),
 **Tower Defense** (deterministic enemy whose rules you read before writing your charter; limited towers).
 
 ## Stack
 
 | Piece | Where | Notes |
 |---|---|---|
-| Deterministic engine | `src/core` | zero deps, seeded PRNG, generators, sim, fog, verifier, scoring, 27-level catalogue |
+| Deterministic engine | `src/core` | zero deps, seeded PRNG, generators, sim, fog, verifier, scoring, 30-level catalogue |
 | Agent runtime | `src/runtime` | prompt assembly, x.ai `grok-4-fast` structured JSON, plan/stopOn loop, replay |
 | Runner | `src/runner` → `convex/_runner/bundle.ts` | single-file bundle executed inside a **Daytona** sandbox |
 | Backend | `convex/` | **Convex**: sessions, runs, frames, decisions; `launch` action dispatches to Daytona (or runs in-process) |
@@ -59,3 +60,5 @@ charter → runs.create → launch (Daytona sandbox | in-process)
 ```
 
 See `docs/plans/2026-09-12-golem-mvp.md` for decisions and `docs/ASSETS.md` for the asset request list.
+
+See [Keymaster implementation and testing](docs/KEYMASTER.md) for the new second learning level.

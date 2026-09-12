@@ -16,7 +16,7 @@ export const DIR_DELTA: Record<Dir, Vec> = {
 };
 
 // ───────────────────────── Modes & tiles ─────────────────────────
-export type ModeId = "maze" | "redfloor" | "towerdefense";
+export type ModeId = "maze" | "redfloor" | "keymaster" | "towerdefense";
 
 /** Static tile layer. Entities (items, doors, towers, enemies) live in `entities`, not here. */
 export type TileType =
@@ -83,6 +83,7 @@ export interface WorldState {
   agent: AgentState;
   td?: TowerDefenseState; // present only in towerdefense
   status: "running" | "won" | "lost" | "out_of_budget";
+  keymaster?: { key: "world" | "inventory" | "consumed"; altar: "idle" | "active"; recentStates: string[] };
   rngState: number; // deterministic PRNG state carried across steps
   /** Tile indices the agent has ever seen, for the renderer's fog memory. */
   seen: number[];
@@ -92,6 +93,7 @@ export interface WorldState {
 export type ActionType =
   | "move"
   | "wait"
+  | "inspect"
   | "interact" // opens door with key / pulls lever / pushes crate in facing (or given) dir
   | "pickup" // picks item on current tile
   | "place" // places a carried plank on the adjacent tile in `dir` (only meaningful on hazard)
@@ -102,6 +104,7 @@ export type ActionType =
 export type Action =
   | { type: "move"; args: { dir: Dir } }
   | { type: "wait"; args?: Record<string, never> }
+  | { type: "inspect"; args?: { dir?: Dir } }
   | { type: "interact"; args?: { dir?: Dir } }
   | { type: "pickup"; args?: Record<string, never> }
   | { type: "place"; args: { dir: Dir } }
@@ -111,6 +114,15 @@ export type Action =
 
 // ───────────────────────── Events (sim output, verifier input) ─────────────────────────
 export type SimEventType =
+  | "inspected"
+  | "item_collected"
+  | "key_consumed"
+  | "door_unlocked"
+  | "interaction_failed"
+  | "altar_reached"
+  | "door_discovered"
+  | "key_discovered"
+  | "agent_stuck"
   | "moved"
   | "blocked"
   | "hazard_entered" // agent stepped on hazard -> agent.alive=false, status=lost
@@ -170,7 +182,7 @@ export interface TowerTypeSpec {
 
 export interface EnvSpec {
   size: Vec;
-  generator: "maze" | "redfloor" | "towerdefense";
+  generator: "maze" | "redfloor" | "keymaster" | "towerdefense";
   params: {
     hazardDensity?: number; // redfloor
     planks?: number; // redfloor: planks scattered
@@ -227,10 +239,13 @@ export interface VisibleEntity {
 }
 
 export interface AgentMemory {
-  knownLandmarks: { kind: string; pos: Vec }[]; // altar, doors, levers, items seen so far
+  knownLandmarks: { kind: string; pos: Vec; props?: Entity["props"] }[]; // altar, doors, levers, items seen so far
   recentEvents: string[]; // last N human-readable event lines
   marks: { pos: Vec; note: string }[]; // agent notes (from `say` with "mark:" prefix) — optional
   visitedCount: number;
+  visited?: Vec[];
+  knownTiles?: VisibleTile[];
+  blockedRoutes?: { pos: Vec; by: string }[];
 }
 
 export interface Observation {
@@ -248,7 +263,7 @@ export interface Observation {
 }
 
 // ───────────────────────── Agent decision (LLM output) ─────────────────────────
-export type StopOn = "new_entity" | "blocked" | "hazard_detected" | "goal_visible" | "item_visible" | "plan_done";
+export type StopOn = "new_entity" | "blocked" | "hazard_detected" | "goal_visible" | "item_visible" | "plan_done" | "state_changed";
 
 export interface AgentDecision {
   intent: string; // short, shown in UI; never chain-of-thought

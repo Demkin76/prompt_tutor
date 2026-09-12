@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { LevelRunResult, ModeId } from "@core/types";
-import { golemApi } from "../api";
+import { BACKEND, golemApi } from "../api";
 
 interface Props {
   runId: string;
@@ -9,6 +9,7 @@ interface Props {
   onRetry: () => void;
   onReplay: (levelId: string) => void;
   onHome: () => void;
+  onKeymaster?: () => void;
 }
 
 function evidenceText(v: unknown): string {
@@ -73,7 +74,7 @@ function ResultCard({ index, title, result, onReplay }: { index: number; title: 
   );
 }
 
-export function Result({ runId, mode, tier, onRetry, onReplay, onHome }: Props) {
+export function Result({ runId, mode, tier, onRetry, onReplay, onHome, onKeymaster }: Props) {
   const run = golemApi.useRun(runId);
   const levelRuns = golemApi.useLevelRuns(runId);
   const tiers = golemApi.useTiers(mode);
@@ -87,6 +88,7 @@ export function Result({ runId, mode, tier, onRetry, onReplay, onHome }: Props) 
 
   return (
     <>
+      {mode === "keymaster" && BACKEND === "mock" && <p className="hint">Результат демонстрационной стратегии. Текст вашего устава не оценивался; прогресс не сохранён.</p>}
       <div className="summary">
         <div className="score">{summary ? `${summary.score} PTS` : run.status === "error" ? "RUN FAILED" : "PENDING"}</div>
         <div className="passed">{summary ? `${summary.passedLevels}/${summary.totalLevels} LEVELS PASSED` : ""}</div>
@@ -94,18 +96,20 @@ export function Result({ runId, mode, tier, onRetry, onReplay, onHome }: Props) 
           TIER {tier} · {charterSummary(run.charter)}
         </div>
       </div>
-      {summary?.tierUnlocked && <div className="unlock">TIER {tier + 1} UNLOCKED</div>}
+      {summary?.tierUnlocked && (mode === "keymaster" ? <div className="unlock keymaster-lesson"><h2>KEYMASTER COMPLETE</h2><p>Не каждая цель достижима напрямую.</p><p>Хороший устав описывает не только цель, но и то, как действовать, когда путь к ней закрыт.</p></div> : tiers?.some(t => t.tier === tier + 1) && <div className="unlock">TIER {tier + 1} UNLOCKED</div>)}
+      {summary?.tierUnlocked && mode === "redfloor" && onKeymaster && <div className="btn-row"><button className="btn primary" onClick={onKeymaster}>Следующий уровень: Keymaster →</button></div>}
       {run.status === "error" && <div className="error">{run.error ?? "The run failed."}</div>}
       <div className="results">
         {levels.map((l, i) => {
           const lr = sorted.find((r) => r.levelId === l.id);
           const result = lr?.result ?? summary?.levels.find((r) => r.levelId === l.id);
-          return <ResultCard key={l.id} index={i + 1} title={l.title} result={result} onReplay={lr ? () => onReplay(l.id) : undefined} />;
+          return <div key={l.id}><ResultCard index={i + 1} title={l.title} result={result} onReplay={lr ? () => onReplay(l.id) : undefined} />
+            {mode === "keymaster" && result && !result.verdict.passed && lr?.replay?.decisions.length ? <p>Последнее решение: «{lr.replay.decisions.at(-1)?.intent}»</p> : null}</div>;
         })}
       </div>
       <div className="btn-row">
         <button className="btn primary" onClick={onRetry}>
-          Retry (edit charter)
+          {mode === "keymaster" ? "Изменить устав" : "Retry (edit charter)"}
         </button>
         <button className="btn ghost" onClick={onHome}>
           Home

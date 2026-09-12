@@ -2,9 +2,15 @@ import { useEffect, useRef } from "react";
 import type { ModeId, TileType } from "@core/types";
 import { drawAsset, drawTile, TILE_LABELS } from "../render";
 
-type Item = { tile: TileType } | { asset: string; kind: string; label: string };
+type Item = { tile: TileType; label?: string } | { asset: string; kind: string; label: string };
 
 const LEGEND: Record<ModeId, Item[]> = {
+  keymaster: [
+    { tile: "floor", label: "Обычная плита — можно идти" },
+    { asset: "item.key", kind: "key", label: "Ключ — можно подобрать" },
+    { asset: "obj.door.closed", kind: "door", label: "Запертая дверь — нужен ключ" },
+    { tile: "altar", label: "Алтарь — выход" },
+  ],
   maze: [
     { tile: "floor" },
     { tile: "wall" },
@@ -57,7 +63,7 @@ export function Legend({ mode }: { mode: ModeId }) {
       {LEGEND[mode].map((item, i) => (
         <div className="item" key={i}>
           <Swatch item={item} />
-          <span>{"tile" in item ? TILE_LABELS[item.tile] : item.label}</span>
+          <span>{"tile" in item ? item.label ?? TILE_LABELS[item.tile] : item.label}</span>
         </div>
       ))}
     </div>

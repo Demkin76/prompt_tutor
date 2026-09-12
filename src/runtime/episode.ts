@@ -78,16 +78,18 @@ async function decide(
   user: string,
   tick: number,
   now: () => number,
+  remainingCalls: number,
+  deadline: number,
 ): Promise<{ record: DecisionRecord; decision: AgentDecision; calls: number }> {
   let latencyMs = 0;
   let calls = 0;
   let lastError = "";
   let prompt = user;
-  for (let attempt = 0; attempt < 2; attempt++) {
+  for (let attempt = 0; attempt < Math.min(2, remainingCalls) && now() < deadline; attempt++) {
     const started = now();
     calls++;
     try {
-      const res = await llm.complete({ system, user: prompt, jsonSchema: DECISION_JSON_SCHEMA });
+      const res = await llm.complete({ system, user: prompt, jsonSchema: DECISION_JSON_SCHEMA, timeoutMs: Math.max(1, deadline - now()) });
       latencyMs += Math.max(res.latencyMs, now() - started);
       const decision = parseDecision(res.text, spec);
       return {
@@ -122,7 +124,7 @@ export async function runLevel(opts: RunLevelOptions): Promise<RunLevelOutput> {
   await sink.push({ kind: "level_start", levelId: spec.id, seed: spec.seed, initialState, spec });
   log(JSON.stringify({ event: "level_start", levelId: spec.id }));
 
-  let memory = engine.emptyMemory();
+  let memory = engine.updateMemory(engine.emptyMemory(), spec, state, []);
   let llmCalls = 0;
   const decisions: DecisionRecord[] = [];
   const actions: Replay["actions"] = [];
@@ -147,7 +149,7 @@ export async function runLevel(opts: RunLevelOptions): Promise<RunLevelOutput> {
         runId,
       );
       const user = buildUserPrompt(charter, obs);
-      const { record, decision, calls } = await decide(llm, spec, system, user, state.tick, now);
+      const { record, decision, calls } = await decide(llm, spec, system, user, state.tick, now, limits.llmCalls - llmCalls, startedAt + limits.wallClockMs);
       llmCalls += calls;
       decisions.push(record);
       await sink.push({ kind: "decision", levelId: spec.id, record });
@@ -156,6 +158,7 @@ export async function runLevel(opts: RunLevelOptions): Promise<RunLevelOutput> {
       stopOn = decision.stopOn;
     }
 
+    if (now() - startedAt >= limits.wallClockMs) break;
     const action = queue.shift() as Action;
     const prev = state;
     const res = engine.step(spec, prev, action);
@@ -168,7 +171,7 @@ export async function runLevel(opts: RunLevelOptions): Promise<RunLevelOutput> {
     const triggers = engine.detectTriggers(spec, prev, state, res.events);
     const interrupted =
       triggers.some((t) => stopOn.includes(t)) || res.events.some((e) => e.type === "blocked" || e.type === "invalid_action");
-    if (interrupted) queue = [];
+    if (interrupted || (spec.mode === "keymaster" && (triggers.includes("state_changed") || triggers.includes("new_entity") || triggers.includes("goal_visible")))) queue = [];
   }
 
   if (state.status === "running" && (outOfBudget || !engine.isTerminal(state))) {
