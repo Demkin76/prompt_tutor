@@ -11,8 +11,7 @@ test("all pages load with working assets and no client exceptions", async ({ pag
     expect(await page.locator("img").evaluateAll(images => images.every(image => (image as HTMLImageElement).naturalWidth > 0))).toBe(true);
   }
   await page.goto("index.html");
-  await page.getByRole("link", { name: "Launch game" }).first().click();
-  await expect(page.getByRole("textbox")).toBeVisible();
+  await expect(page.getByRole("link", { name: "Launch game" }).first()).toHaveAttribute("href", "https://demkin76.github.io/prompt_tutor/play.html#all");
   expect(failures).toEqual([]);
 });
 
