@@ -24,7 +24,15 @@ export const CHARTER_OPEN = "<<<CHARTER>>>";
 export const CHARTER_CLOSE = "<<<END CHARTER>>>";
 export const OBSERVATION_MARKER = "OBSERVATION (JSON):";
 export const ASCII_MARKER = "ASCII VIEW (rows top to bottom, you are '@'):";
-export const USER_PROMPT_TAIL = "Reply with the JSON decision object only.";
+export const USER_PROMPT_TAIL = "Follow the charter literally. Reply with the JSON decision object only.";
+export const KNOWN_MAP_MARKER = "KNOWN MAP (everything seen so far, ? = never seen; same legend, @ = you):";
+export const NAV_ADVICE = [
+  "Navigation advice (applies unless the charter says otherwise):",
+  "- Use the KNOWN MAP to plan: head for the objective if its location is known, otherwise toward the nearest '?' frontier next to a known walkable tile.",
+  "- memory.recentPositions lists where you just were; if you keep alternating between the same tiles you are oscillating — pick a different frontier.",
+  "- A corridor that ends in walls on all sides is a dead end: leave it and do not come back.",
+  "- Plans may contain several moves; chain them along a known safe route instead of one step at a time.",
+].join("\n");
 
 /** Exact arg shape + one-line meaning for every action type. */
 export const ACTION_DOCS: Record<ActionType, { shape: string; doc: string }> = {
@@ -96,6 +104,8 @@ export function buildSystemPrompt(spec: LevelSpec, engineLegend: string): string
     "- plan: 1 to 5 primitive actions, executed in order, one per tick.",
     "- stopOn: the plan is interrupted and you are asked again as soon as any listed trigger fires:",
     stopOn,
+    "",
+    NAV_ADVICE,
     "The plan also stops automatically after a blocked or invalid action.",
     `Budget for this level: at most ${spec.limits.ticks} ticks and ${spec.limits.llmCalls} decisions. Longer plans save decisions; shorter plans react faster.`,
     "",
@@ -107,7 +117,7 @@ export function buildSystemPrompt(spec: LevelSpec, engineLegend: string): string
 }
 
 export function buildUserPrompt(charter: string, obs: Observation): string {
-  const { asciiView, ...rest } = obs;
+  const { asciiView, knownMap, ...rest } = obs;
   return [
     CHARTER_OPEN,
     charter.trim(),
@@ -119,6 +129,7 @@ export function buildUserPrompt(charter: string, obs: Observation): string {
     ASCII_MARKER,
     asciiView,
     "",
+    ...(knownMap ? [KNOWN_MAP_MARKER, knownMap, ""] : []),
     USER_PROMPT_TAIL,
   ].join("\n");
 }

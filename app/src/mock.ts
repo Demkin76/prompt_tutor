@@ -18,7 +18,7 @@ import type {
   WorldState,
 } from "@core/types";
 import type { DecisionRow, FrameRow, LevelRunDoc, ModeInfo, RunDoc, SessionDoc } from "./api";
-import type { RunnerMessage } from "@core/types";
+import type { RunnerMessage, TierResult } from "@core/types";
 import { keymasterDemoDecision } from "@runtime/keymaster-demo";
 import { createFakeLlm, runTier } from "@runtime/index";
 import { listTiers, getTier } from "@core/index";
@@ -485,7 +485,7 @@ export class MockStore {
 
   createRun(args: { sessionId: string; mode: ModeId; tier: number; charter: string }): string {
     const runId = "mock-" + Math.random().toString(36).slice(2, 10);
-    const run: RunDoc = { runId, sessionId: args.sessionId, mode: args.mode, tier: args.tier, charter: args.charter, status: "queued", host: "mock" };
+    const run: RunDoc = { runId, sessionId: args.sessionId, mode: args.mode, tier: args.tier, currentTier: args.tier, ladder: [], charter: args.charter, status: "queued", host: "mock" };
     this.runs.set(runId, run);
     this.levelRuns.set(runId, []);
     this.bump();
@@ -535,18 +535,45 @@ export class MockStore {
         break;
       }
       case "run_end": {
-        const summary = message.summary;
-        this.runs.set(runId, { ...(this.runs.get(runId) ?? run), status: "finished", summary });
+        // One tier done: aggregate the ladder like convex/runs.ts, then climb or finish.
+        const tierSummary = message.summary;
+        const current = this.runs.get(runId) ?? run;
+        const currentTier = current.currentTier ?? current.tier;
+        const ladder: TierResult[] = [...(current.ladder ?? [])];
+        if (!ladder.some((t) => t.tier === currentTier)) {
+          ladder.push({ tier: currentTier, passedLevels: tierSummary.passedLevels, totalLevels: tierSummary.totalLevels, score: tierSummary.score, unlocked: tierSummary.tierUnlocked });
+        }
+        const prevLevels = (current.summary?.levels ?? []).filter((l) => !tierSummary.levels.some((n) => n.levelId === l.levelId));
+        const summary: RunSummary = {
+          passedLevels: ladder.reduce((a, t) => a + t.passedLevels, 0),
+          totalLevels: ladder.reduce((a, t) => a + t.totalLevels, 0),
+          score: Math.round(ladder.reduce((a, t) => a + t.score, 0) * 100) / 100,
+          tierUnlocked: tierSummary.tierUnlocked,
+          levels: [...prevLevels, ...tierSummary.levels],
+          tiers: ladder,
+          reachedTier: currentTier,
+        };
         if (this.session && run.mode !== "keymaster") {
-          const key = `${run.mode}-${run.tier}`;
+          const key = `${run.mode}-${currentTier}`;
           const prev = this.session.best[key];
           const best = { ...this.session.best };
-          if (!prev || prev.passedLevels < summary.passedLevels || (prev.passedLevels === summary.passedLevels && prev.score < summary.score))
-            best[key] = { score: summary.score, passedLevels: summary.passedLevels, charter: run.charter };
+          if (!prev || prev.passedLevels < tierSummary.passedLevels || (prev.passedLevels === tierSummary.passedLevels && prev.score < tierSummary.score))
+            best[key] = { score: tierSummary.score, passedLevels: tierSummary.passedLevels, charter: run.charter };
           const progress = { ...this.session.progress };
-          if (summary.tierUnlocked && (progress[run.mode] ?? 1) < run.tier + 1 && run.tier < 3) progress[run.mode] = run.tier + 1;
+          if (tierSummary.tierUnlocked && (progress[run.mode] ?? 1) < currentTier + 1 && currentTier < 3) progress[run.mode] = currentTier + 1;
           this.session = { ...this.session, best, progress };
           this.persistSession();
+        }
+        const maxTier = listTiers(run.mode).length;
+        if (tierSummary.tierUnlocked && currentTier < maxTier) {
+          this.runs.set(runId, { ...current, summary, ladder, currentTier: currentTier + 1, status: "running" });
+          this.bump();
+          fetch(`${import.meta.env.BASE_URL}demo/${run.mode}-t${currentTier + 1}.json`)
+            .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+            .then((rec: { messages: RunnerMessage[] }) => this.playRecorded(runId, run, rec.messages))
+            .catch(() => this.ingest(runId, run, { kind: "error", message: `no recorded demo for ${run.mode} tier ${currentTier + 1}` }));
+        } else {
+          this.runs.set(runId, { ...current, summary, ladder, status: "finished" });
         }
         break;
       }

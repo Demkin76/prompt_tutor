@@ -74,6 +74,11 @@ function hash(n: number): number {
 }
 
 export function drawTile(ctx: Ctx, tile: TileType, x: number, y: number, s: number, seed = 0): void {
+  const sp = tileSprite(tile, seed);
+  if (sp) {
+    blitSprite(ctx, sp, x, y, s, false, true);
+    return;
+  }
   const base = TILE_COLORS[tile] ?? "#ff00ff";
   ctx.fillStyle = base;
   ctx.fillRect(x, y, s, s);
@@ -390,14 +395,76 @@ export const ASSETS: Record<string, DrawFn> = {
 };
 
 const SPRITES = new Map<string, Sprite>();
+const ANIMS = new Map<string, Record<string, Sprite[]>>();
+const FRAME_MS = 160;
 
 /** Plug a spritesheet region in for an assetKey; it overrides the placeholder for that key. */
 export function registerSprite(assetKey: string, sprite: Sprite): void {
   SPRITES.set(assetKey, sprite);
 }
 
+/** Register animation strips for an assetKey: { idle: [...], walk: [...], ... }. */
+export function registerAnimation(assetKey: string, anims: Record<string, Sprite[]>): void {
+  ANIMS.set(assetKey, { ...(ANIMS.get(assetKey) ?? {}), ...anims });
+}
+
 export function unregisterSprite(assetKey: string): void {
   SPRITES.delete(assetKey);
+  ANIMS.delete(assetKey);
+}
+
+export function hasSprites(): boolean {
+  return SPRITES.size > 0 || ANIMS.size > 0;
+}
+
+function frameIndex(n: number, offset = 0): number {
+  return n <= 1 ? 0 : (Math.floor(performance.now() / FRAME_MS) + offset) % n;
+}
+
+/** Pick a state-dependent sprite key for entities with variants (door open/closed, lever on/off, base damaged). */
+function variantKey(assetKey: string, entity: Entity | null): string {
+  if (!entity) return assetKey;
+  if (entity.kind === "door") return `obj.door.${entity.props.open ? "open" : "closed"}`;
+  if (entity.kind === "lever") return `obj.lever.${entity.props.on ? "on" : "off"}`;
+  if (entity.kind === "base") {
+    const hp = entity.props.hp;
+    const hpMax = entity.props.hpMax;
+    if (typeof hp === "number" && typeof hpMax === "number" && hp < hpMax) return "td.base.damaged";
+  }
+  return assetKey;
+}
+
+/** Draw a sprite scaled to fit a tile cell, aspect preserved, anchored bottom-centre; flipped for west-facing units. */
+function blitSprite(ctx: Ctx, sp: Sprite, x: number, y: number, size: number, flip: boolean, fill = false): void {
+  let dw = size;
+  let dh = size;
+  if (!fill) {
+    const k = Math.min(size / sp.sw, size / sp.sh);
+    dw = sp.sw * k;
+    dh = sp.sh * k;
+  }
+  const dx = x + (size - dw) / 2;
+  const dy = y + size - dh;
+  ctx.imageSmoothingEnabled = false;
+  if (flip) {
+    ctx.save();
+    ctx.translate(dx + dw, dy);
+    ctx.scale(-1, 1);
+    ctx.drawImage(sp.image, sp.sx, sp.sy, sp.sw, sp.sh, 0, 0, dw, dh);
+    ctx.restore();
+  } else {
+    ctx.drawImage(sp.image, sp.sx, sp.sy, sp.sw, sp.sh, dx, dy, dw, dh);
+  }
+}
+
+/** Sprite for a static tile type, if registered (floor variants picked by seed, altar glow animated). */
+function tileSprite(tile: TileType, seed: number): Sprite | undefined {
+  if (tile === "floor") {
+    const v = hash(seed * 7);
+    return (v > 0.85 ? SPRITES.get("tile.floor.v3") : v > 0.6 ? SPRITES.get("tile.floor.v2") : undefined) ?? SPRITES.get("tile.floor");
+  }
+  if (tile === "altar") return (frameIndex(2, seed) === 1 ? SPRITES.get("tile.altar.f2") : undefined) ?? SPRITES.get("tile.altar");
+  return SPRITES.get(`tile.${tile}`);
 }
 
 function resolveDraw(assetKey: string, kind?: string): DrawFn {
@@ -419,16 +486,46 @@ export function drawAsset(
   animation = "idle",
   kind?: string,
 ): void {
-  const sprite = SPRITES.get(assetKey);
+  const key = variantKey(assetKey, entity);
+  const flip = facing === "west";
+  const anims = ANIMS.get(key) ?? ANIMS.get(assetKey) ?? (kind === "enemy" ? ANIMS.get("td.enemy.grunt") : undefined);
+  if (anims) {
+    const strip = anims[animation] ?? anims.idle ?? anims.walk ?? Object.values(anims)[0];
+    if (strip && strip.length > 0) {
+      const seed = entity ? entity.id.length + entity.pos[0] * 3 + entity.pos[1] * 5 : 0;
+      blitSprite(ctx, strip[frameIndex(strip.length, seed)], x, y, size, flip);
+      if (entity && kind === "enemy") drawHpBar(ctx, entity, x, y, size);
+      return;
+    }
+  }
+  const sprite = SPRITES.get(key) ?? SPRITES.get(assetKey);
   if (sprite) {
-    ctx.drawImage(sprite.image, sprite.sx, sprite.sy, sprite.sw, sprite.sh, x, y, size, size);
+    blitSprite(ctx, sprite, x, y, size, flip);
+    if (entity && kind === "enemy") drawHpBar(ctx, entity, x, y, size);
     return;
   }
   resolveDraw(assetKey, kind)({ ctx, x, y, size, entity, facing, animation });
 }
 
+function drawHpBar(ctx: Ctx, entity: Entity, x: number, y: number, s: number): void {
+  const hp = typeof entity.props.hp === "number" ? entity.props.hp : null;
+  const hpMax = typeof entity.props.hpMax === "number" ? entity.props.hpMax : null;
+  if (hp === null || !hpMax) return;
+  ctx.fillStyle = "#000";
+  ctx.fillRect(x + s * 0.2, y + s * 0.02, s * 0.6, s * 0.12);
+  ctx.fillStyle = hp / hpMax > 0.5 ? "#4fd35a" : "#e0453a";
+  ctx.fillRect(x + s * 0.22, y + s * 0.04, s * 0.56 * Math.max(0, Math.min(1, hp / hpMax)), s * 0.08);
+}
+
 // ───────────────────────── World ─────────────────────────
 function drawUnseen(ctx: Ctx, x: number, y: number, s: number, seed: number): void {
+  const sp = SPRITES.get("tile.unknown");
+  if (sp) {
+    blitSprite(ctx, sp, x, y, s, false, true);
+    ctx.fillStyle = "rgba(0,0,0,0.45)";
+    ctx.fillRect(x, y, s, s);
+    return;
+  }
   ctx.fillStyle = "#07080b";
   ctx.fillRect(x, y, s, s);
   ctx.fillStyle = "rgba(255,255,255,0.035)";
@@ -512,7 +609,8 @@ export function drawWorld(ctx: Ctx, state: WorldState, opts: DrawWorldOpts): voi
 }
 
 /** Overlay enemies from a towerdefense wave trace sub-tick. */
-export function drawTraceEnemies(ctx: Ctx, enemies: TraceEnemy[], tileSize: number, hpMax = 0): void {
+export function drawTraceEnemies(ctx: Ctx, enemies: TraceEnemy[], tileSize: number, hpMax = 0, enemyType = "grunt"): void {
+  const enemyKey = `td.enemy.${enemyType}`;
   for (const en of enemies) {
     if (en.hp <= 0) continue;
     const fake: Entity = {
@@ -520,9 +618,9 @@ export function drawTraceEnemies(ctx: Ctx, enemies: TraceEnemy[], tileSize: numb
       kind: "enemy",
       pos: en.pos,
       props: { hp: en.hp, hpMax: hpMax || en.hp },
-      visual: { assetKey: "td.enemy", animation: "walk", facing: "east" },
+      visual: { assetKey: enemyKey, animation: "walk", facing: "east" },
     };
-    drawAsset(ctx, "td.enemy", en.pos[0] * tileSize, en.pos[1] * tileSize, tileSize, fake, "east", "walk", "enemy");
+    drawAsset(ctx, enemyKey, en.pos[0] * tileSize, en.pos[1] * tileSize, tileSize, fake, "east", "walk", "enemy");
   }
 }
 

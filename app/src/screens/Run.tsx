@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ModeId } from "@core/types";
-import { golemApi } from "../api";
+import { BACKEND, golemApi } from "../api";
 import { CharterLocked } from "../components/CharterPanel";
 import { GolemLog } from "../components/GolemLog";
 import { LevelCard } from "../components/LevelCard";
@@ -29,7 +29,10 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
   const levelId = current?.levelId ?? null;
   const frames = golemApi.useFrames(runId, levelId);
   const decisions = golemApi.useDecisions(runId, levelId);
-  const tierSpec = tiers?.find((t) => t.tier === tier);
+  // Ladder: the tier being played advances while every level of a tier is passed.
+  const playingTier = current?.spec?.tier ?? run?.currentTier ?? tier;
+  const tierSpec = tiers?.find((t) => t.tier === playingTier);
+  const tierLevelRuns = useMemo(() => sorted.filter((lr) => lr.spec?.tier === playingTier), [sorted, playingTier]);
 
   // Animate through frames as they arrive: `cursor` = number of frames shown.
   const [cursor, setCursor] = useState(0);
@@ -74,7 +77,8 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
   if (run === null) return <div className="error">Run not found.</div>;
   if (!run || !tierSpec) return <div className="loading">summoning the golem</div>;
 
-  const levelIndex = current ? current.order + 1 : 1;
+  const levelIndex = current?.spec?.index ?? 1;
+  const ladder = run.summary?.tiers ?? run.ladder ?? [];
   const radius = current?.spec.observation.radius ?? 2;
   const banner =
     state?.status === "won"
@@ -88,7 +92,20 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
   return (
     <div className="layout">
       <div className="col">
-        <LevelCard tier={tierSpec} activeLevelId={levelId} levelRuns={sorted} />
+        <LevelCard tier={tierSpec} activeLevelId={levelId} levelRuns={tierLevelRuns} />
+        {ladder.length > 0 && (
+          <div className="panel ladder">
+            <h3>Ladder</h3>
+            <ul>
+              {ladder.map((t) => (
+                <li key={t.tier}>
+                  Tier {t.tier}: {t.passedLevels}/{t.totalLevels} {t.unlocked ? "— climbing" : "— stopped"}
+                </li>
+              ))}
+              {run.status === "running" && <li>Tier {playingTier}: playing...</li>}
+            </ul>
+          </div>
+        )}
       </div>
       <div className="col">
         <div className="stage">
@@ -99,12 +116,18 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
           <div className="caption">
             {current ? (
               <>
-                LEVEL {levelIndex}/3 — {current.spec.title.toUpperCase()}
+                TIER {playingTier} · LEVEL {levelIndex}/3 — {current.spec.title.toUpperCase()}
                 <br />
               </>
             ) : null}
             {lastIntent ? <span className="intent">"{lastIntent}"</span> : <span style={{ opacity: 0.6 }}>the golem is thinking...</span>}
           </div>
+          {BACKEND !== "convex" && (
+            <div className="error" style={{ marginTop: 8 }}>
+              MOCK MODE: this is a pre-recorded demo run. The golem is NOT reading your charter. Set VITE_CONVEX_URL and XAI_API_KEY (see README) for real
+              charter-driven runs.
+            </div>
+          )}
           {errored && <div className="error">Run failed: {run.error ?? "unknown error"}</div>}
           {(finished || errored) && (
             <div className="btn-row">
@@ -125,7 +148,7 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
       <div className="col">
         <CharterLocked keymaster={mode === "keymaster"} value={charter} budget={tierSpec.levels[0].promptBudget} />
         <GolemLog lines={lines} />
-        <StatusBox state={state} llmCalls={llmCalls} levelIndex={levelIndex} levelsTotal={3} tier={tier} />
+        <StatusBox state={state} llmCalls={llmCalls} levelIndex={levelIndex} levelsTotal={3} tier={playingTier} />
       </div>
     </div>
   );

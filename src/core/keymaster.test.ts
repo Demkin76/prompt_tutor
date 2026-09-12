@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { pickApprovedSeed } from "./approve";
 import { getTier } from "./levels";
 import { generateLevel } from "./generators";
 import { bfs, chebyshev, dirTo, isWalkable, manhattan, samePos, tileAt } from "./grid";
@@ -119,6 +120,27 @@ describe("Keymaster contracts", () => {
 });
 
 describe("Keymaster full runtime", () => {
+  it("random production seeds preserve all three layouts and still pass the runtime", async () => {
+    for (const value of [0, 0.5, 0.9999999999]) {
+      const initial: WorldState[] = [];
+      const summary = await runTier({ runId: "random-km", tier, charter, sink,
+        llm: createFakeLlm(keymasterDemoDecision),
+        pickSeed: l => {
+          const picked = pickApprovedSeed(l, () => value);
+          expect(picked.approval.ok).toBe(true);
+          expect(picked.seed).toBeGreaterThan(0);
+          expect(picked.seed).toBeLessThanOrEqual(0x7fffffff);
+          const state = generateLevel({ ...l, seed: picked.seed });
+          expect(state.agent.pos).toEqual(generateLevel(l).agent.pos);
+          initial.push(state);
+          return picked.seed;
+        },
+      });
+      expect(new Set(initial.map(s => JSON.stringify(s.agent.pos))).size).toBe(3);
+      expect(summary.passedLevels).toBe(3);
+    }
+  });
+
   it("solves all hidden maps with one observation-only policy and replays every state/event exactly", async () => {
     const messages: RunnerMessage[] = [];
     const summary = await runTier({ runId: "km", tier, charter, llm: createFakeLlm((obs, actualCharter) => {

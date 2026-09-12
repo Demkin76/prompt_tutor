@@ -1,8 +1,10 @@
 # GOLEM — write. animate. observe.
 
 You do not control the unit. You write one immutable **charter** in natural language; a golem (an LLM agent) then plays
-three hidden levels of the current tier by that charter. Pass all three to unlock the next tier. Every run is a
-deterministic, replayable benchmark.
+three hidden levels of the current tier by that charter. Pass all three and the same run climbs to the next tier
+automatically (a "ladder"); the run ends at the first tier that is not fully passed. Rating = levels passed by one
+charter. Worlds are generated from fresh random seeds every run, and every seed is first proven passable by a
+full-knowledge solver (`approveLevel`) through the real simulation. Every run is deterministic and replayable.
 
 Modes: **Maze** (fog-of-war pathfinding), **Red Floor** (deadly tiles, planks, keys, levers, crates; narrow vision on tier 3),
 **Keymaster** (level 2: key → locked door → exit, with three hidden maps),
@@ -34,6 +36,14 @@ Convex action (same code, same results).
 
 Without `VITE_CONVEX_URL` the UI starts in **mock mode** with a scripted run, so the screens can be demoed offline.
 
+## Deploy the frontend to GitHub Pages
+
+Create a production deploy key in Convex, save it as the `CONVEX_PRODUCTION_DEPLOY_KEY` secret in the repository's
+`github-pages` environment, then select **GitHub Actions** as the Pages source. Pushes to `main` deploy the Convex backend,
+inject that deployment's URL into the Vite build as `VITE_CONVEX_URL`, and publish `dist/`. Local development continues
+to use the separate deployment in `.env.local`. The workflow supplies GitHub's path as `BASE_URL`, and Vite exposes the
+normalized value to client code as `import.meta.env.BASE_URL`.
+
 ## Command-line runs (no backend needed)
 
 ```bash
@@ -53,10 +63,11 @@ npm test
 ## Layout of a run
 
 ```
-charter → runs.create → launch (Daytona sandbox | in-process)
-   → for each of 3 levels: generateLevel(seed) → observe → LLM decision (intent + plan + stopOn)
+charter → runs.create → launch (Daytona sandbox | in-process) for the current tier
+   → for each of 3 levels: pickApprovedSeed → generateLevel(seed) → observe → LLM decision (intent + plan + stopOn)
    → sim.step per action → frames/decisions streamed to Convex → verify → score
-   → run_end: progress/tier unlock, best score per tier
+   → run_end (tier): ladder entry, progress/tier unlock, best score per tier
+   → 3/3 and tiers left? schedule launch again for tier+1 (new sandbox) : finish the run
 ```
 
 See `docs/plans/2026-09-12-golem-mvp.md` for decisions and `docs/ASSETS.md` for the asset request list.

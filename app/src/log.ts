@@ -127,11 +127,14 @@ export interface TraceStep {
 }
 
 /** Extract a towerdefense wave trace from a frame's `wave_ended` event, if any. */
-export function traceOf(frame: Frame | null | undefined): { trace: TraceStep[]; hpMax: number } | null {
+export function traceOf(frame: Frame | null | undefined): { trace: TraceStep[]; hpMax: number; enemyType: string } | null {
   if (!frame) return null;
+  const started = frame.events.find((e) => e.type === "wave_started");
+  const enemyType = typeof started?.data?.enemyType === "string" ? (started.data.enemyType as string) : "grunt";
+  const hpFromStart = typeof started?.data?.hp === "number" ? (started.data.hp as number) : 0;
   for (const e of frame.events) {
     if (e.type === "wave_ended" && Array.isArray(e.data?.trace)) {
-      return { trace: e.data!.trace as TraceStep[], hpMax: typeof e.data?.hpMax === "number" ? (e.data.hpMax as number) : 0 };
+      return { trace: e.data!.trace as TraceStep[], hpMax: typeof e.data?.hpMax === "number" ? (e.data.hpMax as number) : hpFromStart, enemyType };
     }
   }
   return null;

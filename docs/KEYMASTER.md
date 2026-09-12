@@ -21,6 +21,8 @@ node --import tsx scripts/run-local.ts --mode keymaster --tier 1 --charter "Ис
 
 ## World and actions
 
+Production selects fresh approved seeds while preserving the A/B/C layout for each trial. The shared full-knowledge approver proves the key/door route through the real simulator before a map is used.
+
 Three deterministic 16×16 layouts (32-pixel tiles): A has the key on the left and the gate on the right; B reveals the door at the start and keeps the key in the far chamber; C has a nearby key and requires returning along explored cells. Walls seal the exit wing; the gate is its only entrance. Crates occupy optional branches.
 
 `move`, `inspect`, `pickup`, `interact`, `wait`, and the existing `say` are available.

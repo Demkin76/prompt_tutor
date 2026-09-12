@@ -1,3 +1,4 @@
+import { loadAssets } from "./assets";
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { ConvexProvider, ConvexReactClient } from "convex/react";
@@ -23,3 +24,5 @@ if (CONVEX_URL) {
     </React.StrictMode>,
   );
 }
+
+void loadAssets();

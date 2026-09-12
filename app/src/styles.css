@@ -791,3 +791,57 @@ ul.rules li {
 .keymaster .locked { border-left: 3px solid #d9a63e; }
 .keymaster-lesson { max-width: 800px; margin: 20px auto; color: #f2ca76; }
 .keymaster-lesson p { font-family: var(--font-body); font-size: 24px; }
+
+/* ───────── sliced atlas assets ───────── */
+.topbar .logo {
+  height: 40px;
+  image-rendering: pixelated;
+  cursor: pointer;
+}
+.hero-logo {
+  height: 96px;
+  image-rendering: pixelated;
+  display: block;
+  margin: 0 auto 8px;
+}
+.hero-mascot {
+  height: 64px;
+  image-rendering: pixelated;
+  display: block;
+  margin: 8px auto 0;
+}
+.status {
+  position: relative;
+}
+.status .mascot {
+  position: absolute;
+  right: 14px;
+  top: 12px;
+  height: 56px;
+  image-rendering: pixelated;
+}
+.icon {
+  height: 14px;
+  vertical-align: -2px;
+  image-rendering: pixelated;
+}
+.topbar {
+  background-size: auto 100%;
+  background-repeat: repeat-x;
+}
+
+.tier-heading {
+  font-family: var(--font-head);
+  font-size: 12px;
+  color: var(--parch-100);
+  margin: 18px 0 8px;
+}
+.ladder ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.ladder li {
+  font-size: 15px;
+  padding: 2px 0;
+}
