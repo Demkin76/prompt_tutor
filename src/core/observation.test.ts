@@ -1,3 +1,4 @@
+import { TD_TIERS } from "./levels";
 import { describe, expect, it } from "vitest";
 import { ASCII_LEGEND, buildObservation, detectTriggers, emptyMemory, updateMemory } from "./observation";
 import { step } from "./sim";
@@ -29,7 +30,7 @@ describe("observation", () => {
   });
 
   it("tower defense shows the full arena and the td block", () => {
-    const lvl = getLevel("towerdefense-t1-l1")!;
+    const lvl = TD_TIERS[0].levels[0];
     const s = generateLevel(lvl);
     const obs = buildObservation(lvl, s, emptyMemory(), { ticksLeft: 9, callsLeft: 9 }, "r");
     expect(obs.asciiView.split("\n").length).toBe(12);

@@ -1,3 +1,4 @@
+import { TD_TIERS } from "./levels";
 import { describe, expect, it } from "vitest";
 import { ALL_LEVELS, TIERS, getLevel, getTier, listTiers, MODES } from "./levels";
 import { generateLevel } from "./generators/index";
@@ -11,12 +12,12 @@ function altarPos(s: WorldState): Vec {
 }
 
 describe("level catalogue", () => {
-  it("has 9 tiers and 27 levels", () => {
-    expect(TIERS.length).toBe(9);
-    expect(ALL_LEVELS.length).toBe(27);
+  it("has 6 tiers and 18 levels (maze + red floor)", () => {
+    expect(TIERS.length).toBe(6);
+    expect(ALL_LEVELS.length).toBe(18);
     for (const t of TIERS) expect(t.levels.length).toBe(3);
-    expect(new Set(ALL_LEVELS.map((l) => l.id)).size).toBe(27);
-    expect(new Set(ALL_LEVELS.map((l) => l.seed)).size).toBe(27);
+    expect(new Set(ALL_LEVELS.map((l) => l.id)).size).toBe(18);
+    expect(new Set(ALL_LEVELS.map((l) => l.seed)).size).toBe(18);
     for (const m of MODES) expect(listTiers(m.id).length).toBe(3);
     expect(getTier("maze", 2)?.levels[0].id).toBe("maze-t2-l1");
     expect(getLevel("redfloor-t3-l3")?.tier).toBe(3);
@@ -105,7 +106,7 @@ describe("generateLevel", () => {
   });
 
   it("towerdefense: route spawn -> base, buildable slots >= towerLimit, base entity, td state", () => {
-    for (const l of ALL_LEVELS.filter((x) => x.mode === "towerdefense")) {
+    for (const l of TD_TIERS.flatMap((t) => t.levels)) {
       const s = generateLevel(l);
       const route = enemyRoute(s);
       expect(route.length).toBeGreaterThan(12);
