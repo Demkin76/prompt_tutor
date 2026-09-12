@@ -20,8 +20,8 @@ import type {
   StopOn,
   Verdict,
   WorldState,
-} from "@core/types";
-import * as core from "@core/index";
+} from "../core/types";
+import * as core from "../core/index";
 
 export interface Budget {
   ticksLeft: number;

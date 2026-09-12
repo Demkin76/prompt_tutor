@@ -2,8 +2,8 @@
  * Parse + validate an LLM reply into an AgentDecision.
  * Throws DecisionError with a human-readable reason (fed back to the model on retry).
  */
-import type { Action, ActionType, AgentDecision, Dir, LevelSpec, StopOn } from "@core/types";
-import { DIRS } from "@core/types";
+import type { Action, ActionType, AgentDecision, Dir, LevelSpec, StopOn } from "../core/types";
+import { DIRS } from "../core/types";
 import { STOP_ON_VALUES } from "./prompt";
 
 export class DecisionError extends Error {

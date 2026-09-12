@@ -2,7 +2,7 @@
  * LLM clients. `createXaiClient` talks to x.ai's OpenAI-compatible chat completions API with
  * JSON-schema structured output. `createFakeLlm` is for tests / offline demos.
  */
-import type { AgentDecision, LlmClient, LlmRequest, LlmResponse, Observation } from "@core/types";
+import type { AgentDecision, LlmClient, LlmRequest, LlmResponse, Observation } from "../core/types";
 import { ASCII_MARKER, CHARTER_CLOSE, CHARTER_OPEN, OBSERVATION_MARKER, USER_PROMPT_TAIL } from "./prompt";
 
 export type FetchLike = (input: string, init: RequestInit) => Promise<Response>;
