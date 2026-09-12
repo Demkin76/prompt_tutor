@@ -33,6 +33,14 @@ Convex action (same code, same results).
 
 Without `VITE_CONVEX_URL` the UI starts in **mock mode** with a scripted run, so the screens can be demoed offline.
 
+## Deploy the frontend to GitHub Pages
+
+Create a production deploy key in Convex, save it as the `CONVEX_PRODUCTION_DEPLOY_KEY` secret in the repository's
+`github-pages` environment, then select **GitHub Actions** as the Pages source. Pushes to `main` deploy the Convex backend,
+inject that deployment's URL into the Vite build as `VITE_CONVEX_URL`, and publish `dist/`. Local development continues
+to use the separate deployment in `.env.local`. The workflow supplies GitHub's path as `BASE_URL`, and Vite exposes the
+normalized value to client code as `import.meta.env.BASE_URL`.
+
 ## Command-line runs (no backend needed)
 
 ```bash

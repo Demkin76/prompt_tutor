@@ -818,7 +818,6 @@ ul.rules li {
   image-rendering: pixelated;
 }
 .topbar {
-  background-image: linear-gradient(rgba(10, 10, 14, 0.55), rgba(10, 10, 14, 0.75)), url("/assets/bg.dungeon_wall.png");
   background-size: auto 100%;
   background-repeat: repeat-x;
 }

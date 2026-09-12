@@ -36,7 +36,12 @@ export function App() {
 
   return (
     <div className="app">
-      <div className="topbar">
+      <div
+        className="topbar"
+        style={{
+          backgroundImage: `linear-gradient(rgba(10, 10, 14, 0.55), rgba(10, 10, 14, 0.75)), url("${assetUrl("bg.dungeon_wall")}")`,
+        }}
+      >
         <div className="brand" onClick={() => setRoute({ s: "home" })} title="Home">
           <img className="logo" src={assetUrl("ui.logo")} alt="GOLEM" />
           <span className="tag">write. animate. observe.</span>
