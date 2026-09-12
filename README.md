@@ -35,13 +35,24 @@ Convex action (same code, same results).
 
 Without `VITE_CONVEX_URL` the UI starts in **mock mode** with a scripted run, so the screens can be demoed offline.
 
-## Deploy the frontend to GitHub Pages
+## Deploy (CI)
 
-Create a production deploy key in Convex, save it as the `CONVEX_PRODUCTION_DEPLOY_KEY` secret in the repository's
-`github-pages` environment, then select **GitHub Actions** as the Pages source. Pushes to `main` deploy the Convex backend,
-inject that deployment's URL into the Vite build as `VITE_CONVEX_URL`, and publish `dist/`. Local development continues
-to use the separate deployment in `.env.local`. The workflow supplies GitHub's path as `BASE_URL`, and Vite exposes the
+Two workflows, one concern each:
+
+- **Backend** (`.github/workflows/backend.yml`) — builds the runner bundle, runs `convex codegen`, typechecks, pushes the
+  functions to the Convex production deployment, and uploads `convex/_generated` plus a generated `.env.production`
+  (holding `VITE_CONVEX_URL`) as the `convex-generated` artifact.
+- **Frontend** (`.github/workflows/frontend.yml`) — triggered by a successful Backend run, downloads that artifact, builds
+  Vite, and publishes `dist/` to GitHub Pages.
+
+Setup: create a production deploy key in Convex, save it as the `CONVEX_PRODUCTION_DEPLOY_KEY` secret in the repository's
+`github-pages` environment, then select **GitHub Actions** as the Pages source. Local development continues to use the
+separate deployment in `.env.local`. The frontend workflow supplies GitHub's path as `BASE_URL`, and Vite exposes the
 normalized value to client code as `import.meta.env.BASE_URL`.
+
+`convex/_generated` is not committed, which is why the frontend build consumes it as an artifact instead of regenerating
+it (that would need a deploy key). Running Frontend on its own via **workflow_dispatch** reuses the artifact from the
+latest successful Backend run.
 
 ## Command-line runs (no backend needed)
 
