@@ -5,7 +5,7 @@ import path from "node:path";
 export default defineConfig({
   root: "app",
   // .env / .env.local live in the project root (next to convex/), not in app/.
-  envDir: __dirname,
+  envDir: path.resolve(__dirname),
   plugins: [react()],
   resolve: {
     alias: {
