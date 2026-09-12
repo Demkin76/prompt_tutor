@@ -93,6 +93,7 @@ export function Replay({ runId, levelId, mode, tier, onBack, onHome }: Props) {
             </button>
             <input
               type="range"
+              aria-label="Replay position"
               min={0}
               max={total}
               value={pos}

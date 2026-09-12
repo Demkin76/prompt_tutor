@@ -124,8 +124,7 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
           </div>
           {BACKEND !== "convex" && (
             <div className="error" style={{ marginTop: 8 }}>
-              MOCK MODE: this is a pre-recorded demo run. The golem is NOT reading your charter. Set VITE_CONVEX_URL and XAI_API_KEY (see README) for real
-              charter-driven runs.
+              DEMO RUN · This sample strategy shows how the engine works. Your charter is not being evaluated.
             </div>
           )}
           {errored && <div className="error">Run failed: {run.error ?? "unknown error"}</div>}

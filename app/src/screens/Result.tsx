@@ -53,8 +53,8 @@ function ResultCard({ index, title, result, onReplay }: { index: number; title: 
         ))}
       </ul>
       {result.verdict.evidence.length > 0 && (
-        <>
-          <h3>Evidence</h3>
+        <details className="proof-details">
+          <summary>Proof &amp; event trace</summary>
           <ul className="evidence">
             {result.verdict.evidence.map((e, i) => (
               <li key={i}>
@@ -63,7 +63,7 @@ function ResultCard({ index, title, result, onReplay }: { index: number; title: 
               </li>
             ))}
           </ul>
-        </>
+        </details>
       )}
       {onReplay && (
         <button className="btn small" onClick={onReplay}>

@@ -3,5 +3,15 @@ dist
 .env
 .env.local
 convex/_runner/bundle.ts
-convex/_generated
+convex/_generated/*
+!convex/_generated/api.js
+!convex/_generated/api.d.ts
+!convex/_generated/server.js
+!convex/_generated/server.d.ts
+!convex/_generated/dataModel.d.ts
 .daytona
+
+.env.*
+!.env.example
+test-results/
+playwright-report/

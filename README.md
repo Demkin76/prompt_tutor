@@ -18,7 +18,11 @@ Modes: **Maze** (fog-of-war pathfinding), **Red Floor** (deadly tiles, planks, k
 | Agent runtime | `src/runtime` | prompt assembly, x.ai `grok-4-fast` structured JSON, plan/stopOn loop, replay |
 | Runner | `src/runner` → `convex/_runner/bundle.ts` | single-file bundle executed inside a **Daytona** sandbox |
 | Backend | `convex/` | **Convex**: sessions, runs, frames, decisions; `launch` action dispatches to Daytona (or runs in-process) |
-| UI | `app/` | Vite + React, Canvas 2D, placeholder tiles keyed by `assetKey` (see `docs/ASSETS.md`) |
+| Website + game | `app/` | Five-page Vite site, React game, Canvas 2D sprites, live Convex runs and replay |
+
+## Website
+
+The homepage, levels, technology and world pages share a build with the real game at `play.html`. See [site deployment, checks and screenshots](docs/SITE_DEPLOYMENT.md). Run `npm run build:demo` for an explicitly labeled offline build; production `npm run build` requires `VITE_CONVEX_URL`.
 
 ## Run locally
 
