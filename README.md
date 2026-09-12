@@ -7,17 +7,22 @@ charter. Worlds are generated from fresh random seeds every run, and every seed 
 full-knowledge solver (`approveLevel`) through the real simulation. Every run is deterministic and replayable.
 
 Modes: **Maze** (fog-of-war pathfinding), **Red Floor** (deadly tiles, planks, keys, levers, crates; narrow vision on tier 3),
+**Keymaster** (level 2: key → locked door → exit, with three hidden maps),
 **Tower Defense** (deterministic enemy whose rules you read before writing your charter; limited towers).
 
 ## Stack
 
 | Piece | Where | Notes |
 |---|---|---|
-| Deterministic engine | `src/core` | zero deps, seeded PRNG, generators, sim, fog, verifier, scoring, 27-level catalogue |
+| Deterministic engine | `src/core` | zero deps, seeded PRNG, generators, sim, fog, verifier, scoring, 30-level catalogue |
 | Agent runtime | `src/runtime` | prompt assembly, x.ai `grok-4-fast` structured JSON, plan/stopOn loop, replay |
 | Runner | `src/runner` → `convex/_runner/bundle.ts` | single-file bundle executed inside a **Daytona** sandbox |
 | Backend | `convex/` | **Convex**: sessions, runs, frames, decisions; `launch` action dispatches to Daytona (or runs in-process) |
-| UI | `app/` | Vite + React, Canvas 2D, placeholder tiles keyed by `assetKey` (see `docs/ASSETS.md`) |
+| Website + game | `app/` | Five-page Vite site, React game, Canvas 2D sprites, live Convex runs and replay |
+
+## Website
+
+The homepage, levels, technology and world pages share a build with the real game at `play.html`. See [site deployment, checks and screenshots](docs/SITE_DEPLOYMENT.md). Run `npm run build:demo` for an explicitly labeled offline build; production `npm run build` requires `VITE_CONVEX_URL`.
 
 ## Run locally
 
@@ -67,8 +72,7 @@ Setup: create a production deploy key in Convex, save it as the `CONVEX_PRODUCTI
 separate deployment in `.env.local`. The frontend job supplies GitHub's path as `BASE_URL`, and Vite exposes the
 normalized value to client code as `import.meta.env.BASE_URL`.
 
-`convex/_generated` is not committed, which is why the frontend job consumes it as an artifact instead of regenerating it
-(that would need a deploy key).
+The standard generated Convex interfaces are committed so a fresh checkout can build and run checks offline. Production codegen refreshes them, and the frontend job consumes those current files plus the public deployment URL as an artifact. The frontend job does not need a deploy key.
 
 ## Command-line runs (no backend needed)
 
@@ -97,3 +101,5 @@ charter → runs.create → launch (Daytona sandbox | in-process) for the curren
 ```
 
 See `docs/plans/2026-09-12-golem-mvp.md` for decisions and `docs/ASSETS.md` for the asset request list.
+
+See [Keymaster implementation and testing](docs/KEYMASTER.md) for the new second learning level.

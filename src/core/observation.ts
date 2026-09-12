@@ -57,6 +57,8 @@ function entityChar(e: Entity): string {
 
 export function objectiveFor(spec: LevelSpec): string {
   switch (spec.mode) {
+    case "keymaster":
+      return "Reach the exit altar beyond the locked door, following the player charter.";
     case "maze":
       return "Reach the altar (A). Walls block you; explore until you find it.";
     case "redfloor":
@@ -203,6 +205,15 @@ export function describeEvent(e: SimEvent): string {
   const d = e.data ?? {};
   const t = `t${e.tick}`;
   switch (e.type) {
+    case "inspected": return `${t} inspected ${d.kind}: ${d.description ?? ""}`;
+    case "item_collected": return `${t} ключ подобран; инвентарь: key`;
+    case "key_consumed": return `${t} ключ использован; инвентарь пуст`;
+    case "door_unlocked": return `${t} замок открыт`;
+    case "interaction_failed": return `${t} действие не удалось: ${d.reason}`;
+    case "altar_reached": return `${t} алтарь достигнут`;
+    case "door_discovered": return `${t} обнаружена запертая дверь ${fmt(d.pos as Vec)}`;
+    case "key_discovered": return `${t} обнаружен ключ ${fmt(d.pos as Vec)}`;
+    case "agent_stuck": return `${t} голем застрял: повторяет действия без прогресса`;
     case "moved":
       return `${t} moved ${d.dir} to ${fmt(d.to as Vec)}`;
     case "blocked":
@@ -255,7 +266,7 @@ function fmt(p: Vec | undefined): string {
 /** Fold the latest step into memory: landmarks seen, recent event lines, marks, visited count. */
 export function updateMemory(memory: AgentMemory, spec: LevelSpec, state: WorldState, events: SimEvent[]): AgentMemory {
   const next: AgentMemory = {
-    knownLandmarks: memory.knownLandmarks.map((l) => ({ kind: l.kind, pos: [l.pos[0], l.pos[1]] as Vec })),
+    knownLandmarks: memory.knownLandmarks.map((l) => ({ ...l, pos: [l.pos[0], l.pos[1]] as Vec })),
     recentEvents: [...memory.recentEvents],
     marks: memory.marks.map((m) => ({ pos: [m.pos[0], m.pos[1]] as Vec, note: m.note })),
     visitedCount: memory.visitedCount,
@@ -275,21 +286,41 @@ export function updateMemory(memory: AgentMemory, spec: LevelSpec, state: WorldS
   const ents = visibleEntities(spec, state);
   for (const e of ents) {
     if (!LANDMARK_KINDS.has(e.kind)) continue;
-    if (have.has(key(e.kind, e.pos))) continue;
-    next.knownLandmarks.push({ kind: e.kind, pos: e.pos });
+    const existing = next.knownLandmarks.find(l => key(l.kind, l.pos) === key(e.kind, e.pos));
+    if (existing) { if (spec.mode === "keymaster") existing.props = { ...e.props }; continue; }
+    next.knownLandmarks.push({ kind: e.kind, pos: e.pos, ...(spec.mode === "keymaster" ? { props: { ...e.props } } : {}) });
     have.add(key(e.kind, e.pos));
   }
   // Forget items that are visibly gone (picked up / crate moved).
   next.knownLandmarks = next.knownLandmarks.filter((l) => {
     if (!(l.kind === "plank" || l.kind === "key" || l.kind === "crate")) return true;
+    if (spec.mode === "keymaster" && l.kind === "key") {
+      l.props = { ...l.props, state: state.keymaster?.key ?? "world" };
+      return true;
+    }
     if (!visibleIdx.has(idx(state.size, l.pos))) return true;
     return state.entities.some((e) => e.kind === l.kind && e.pos[0] === l.pos[0] && e.pos[1] === l.pos[1]);
   });
 
+  if (spec.mode === "keymaster") {
+    const known = new Map((memory.knownTiles ?? []).map(t => [idx(state.size, t.pos), t]));
+    for (const t of tiles) known.set(idx(state.size, t.pos), t);
+    next.knownTiles = [...known.values()];
+    const visited = new Map((memory.visited ?? []).map(p => [idx(state.size, p), p]));
+    visited.set(idx(state.size, state.agent.pos), [...state.agent.pos]);
+    next.visited = [...visited.values()];
+    next.blockedRoutes = [...(memory.blockedRoutes ?? [])];
+    for (const e of events) if (e.type === "blocked" && Array.isArray(e.data?.pos)) {
+      const pos = e.data.pos as Vec;
+      if (!next.blockedRoutes.some(b => idx(state.size, b.pos) === idx(state.size, pos)))
+        next.blockedRoutes.push({ pos, by: String(e.data.by) });
+    }
+    next.blockedRoutes = next.blockedRoutes.filter(b => !ents.some(e => e.kind === "door" && e.props.open && idx(state.size, e.pos) === idx(state.size, b.pos)));
+  }
   // Event lines. Skip the noisy per-enemy TD events.
   for (const e of events) {
     if (e.type === "enemy_spawned" || e.type === "enemy_killed" || e.type === "enemy_leaked") continue;
-    next.recentEvents.push(describeEvent(e));
+    if (spec.mode !== "keymaster" || e.type !== "moved") next.recentEvents.push(describeEvent(e));
     if (e.type === "moved") next.visitedCount += 1;
     if (e.type === "say") {
       const text = String(e.data?.text ?? "");
@@ -328,6 +359,7 @@ export function detectTriggers(spec: LevelSpec, prev: WorldState, next: WorldSta
   const isItem = (e: Entity) => e.kind === "plank" || e.kind === "key";
   const prevItems = new Set(visibleEntities(spec, prev).filter(isItem).map((e) => e.id));
   if (nextEnts.some((e) => isItem(e) && !prevItems.has(e.id))) fired.push("item_visible");
+  if (events.some(e => ["item_collected", "door_opened", "interaction_failed"].includes(e.type))) fired.push("state_changed");
   return fired;
 }
 

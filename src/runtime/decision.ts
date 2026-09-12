@@ -66,10 +66,11 @@ function validateAction(raw: unknown, idx: number, spec: LevelSpec): Action {
       if (!isDir(args.dir)) throw new DecisionError(`plan[${idx}] (${t}) needs args.dir in ${DIRS.join("|")}`);
       return { type: t, args: { dir: args.dir } };
     }
+    case "inspect":
     case "interact": {
-      if (args.dir === undefined) return { type: "interact" };
+      if (args.dir === undefined) return { type: t };
       if (!isDir(args.dir)) throw new DecisionError(`plan[${idx}] (interact) args.dir must be one of ${DIRS.join("|")}`);
-      return { type: "interact", args: { dir: args.dir } };
+      return { type: t, args: { dir: args.dir } };
     }
     case "wait":
       return { type: "wait" };

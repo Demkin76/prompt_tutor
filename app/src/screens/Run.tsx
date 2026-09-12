@@ -55,7 +55,7 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
     return () => window.clearTimeout(t);
   }, [cursor, total, trace]);
 
-  const state = shownFrame?.frame.state ?? current?.initialState ?? null;
+  const state = cursor >= total && current?.replay ? current.replay.finalState : shownFrame?.frame.state ?? current?.initialState ?? null;
   const uptoTick = shownFrame?.tick ?? 0;
   const lines = useMemo(() => buildLog(decisions ?? [], frames ?? [], uptoTick), [decisions, frames, uptoTick]);
   const llmCalls = (decisions ?? []).filter((d) => d.tick <= uptoTick).length;
@@ -84,7 +84,7 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
     state?.status === "won"
       ? { cls: "won", text: mode === "towerdefense" ? "BASE DEFENDED" : "ALTAR REACHED" }
       : state?.status === "lost"
-        ? { cls: "lost", text: "GOLEM DESTROYED" }
+        ? { cls: "lost", text: mode === "keymaster" ? "ГОЛЕМ ЗАСТРЯЛ" : "GOLEM DESTROYED" }
         : state?.status === "out_of_budget"
           ? { cls: "lost", text: "OUT OF BUDGET" }
           : null;
@@ -124,8 +124,7 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
           </div>
           {BACKEND !== "convex" && (
             <div className="error" style={{ marginTop: 8 }}>
-              MOCK MODE: this is a pre-recorded demo run. The golem is NOT reading your charter. Set VITE_CONVEX_URL and XAI_API_KEY (see README) for real
-              charter-driven runs.
+              DEMO RUN · This sample strategy shows how the engine works. Your charter is not being evaluated.
             </div>
           )}
           {errored && <div className="error">Run failed: {run.error ?? "unknown error"}</div>}
@@ -136,7 +135,7 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
               </button>
             </div>
           )}
-          {!finished && !errored && (
+          {!finished && !errored && mode !== "keymaster" && (
             <div className="btn-row">
               <button className="btn ghost small" onClick={onAbort}>
                 Leave (run continues)
@@ -146,7 +145,7 @@ export function Run({ runId, mode, tier, charter, onFinished, onAbort }: Props) 
         </div>
       </div>
       <div className="col">
-        <CharterLocked value={charter} budget={tierSpec.levels[0].promptBudget} />
+        <CharterLocked keymaster={mode === "keymaster"} value={charter} budget={tierSpec.levels[0].promptBudget} />
         <GolemLog lines={lines} />
         <StatusBox state={state} llmCalls={llmCalls} levelIndex={levelIndex} levelsTotal={3} tier={playingTier} />
       </div>

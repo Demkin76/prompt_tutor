@@ -26,7 +26,8 @@ export function Replay({ runId, levelId, mode, tier, onBack, onHome }: Props) {
   const levelRuns = golemApi.useLevelRuns(runId);
   const frames = golemApi.useFrames(runId, levelId);
   const lr = levelRuns?.find((r) => r.levelId === levelId);
-  const tierSpec = tiers?.find((t) => t.tier === tier);
+  const playingTier = lr?.spec?.tier ?? tier;
+  const tierSpec = tiers?.find((t) => t.tier === playingTier);
 
   const initial: WorldState | null = lr?.replay?.initialState ?? lr?.initialState ?? null;
   const decisions = useMemo(() => (lr?.replay?.decisions ?? []).map((d) => ({ tick: d.tick, record: d })), [lr]);
@@ -55,7 +56,7 @@ export function Replay({ runId, levelId, mode, tier, onBack, onHome }: Props) {
   if (run === null) return <div className="error">Run not found.</div>;
   if (!run || !tierSpec || !lr || !frames) return <div className="loading">rewinding the tape</div>;
 
-  const state = frame?.frame.state ?? initial;
+  const state = pos === total && lr.replay ? lr.replay.finalState : frame?.frame.state ?? initial;
   const tick = frame?.tick ?? 0;
   const lines = buildLog(decisions, frames, tick);
   const intent = [...decisions].filter((d) => d.tick <= tick).pop()?.record.intent;
@@ -64,13 +65,13 @@ export function Replay({ runId, levelId, mode, tier, onBack, onHome }: Props) {
   return (
     <div className="layout">
       <div className="col">
-        <LevelCard tier={tierSpec} activeLevelId={levelId} levelRuns={levelRuns} />
+        <LevelCard tier={tierSpec} activeLevelId={levelId} levelRuns={levelRuns?.filter(r => r.spec?.tier === playingTier)} />
       </div>
       <div className="col">
         <div className="stage">
           <WorldCanvas state={state} radius={radius} showFog={showFog} trace={playing ? trace : null} />
           <div className="caption">
-            REPLAY — LEVEL {lr.order + 1}/3 — {lr.spec.title.toUpperCase()}
+            REPLAY — LEVEL {lr.spec.index}/3 — {lr.spec.title.toUpperCase()}
             <br />
             {intent ? <span className="intent">"{intent}"</span> : <span style={{ opacity: 0.6 }}>initial state</span>}
           </div>
@@ -92,6 +93,7 @@ export function Replay({ runId, levelId, mode, tier, onBack, onHome }: Props) {
             </button>
             <input
               type="range"
+              aria-label="Replay position"
               min={0}
               max={total}
               value={pos}
@@ -118,9 +120,9 @@ export function Replay({ runId, levelId, mode, tier, onBack, onHome }: Props) {
         </div>
       </div>
       <div className="col">
-        <CharterLocked value={lr.replay?.charter ?? run.charter} />
+        <CharterLocked keymaster={mode === "keymaster"} value={lr.replay?.charter ?? run.charter} />
         <GolemLog lines={lines} emptyText="Press play." />
-        <StatusBox state={state} llmCalls={decisions.filter((d) => d.tick <= tick).length} levelIndex={lr.order + 1} levelsTotal={3} tier={tier} />
+        <StatusBox state={state} llmCalls={decisions.filter((d) => d.tick <= tick).length} levelIndex={lr.spec.index} levelsTotal={3} tier={playingTier} />
       </div>
     </div>
   );

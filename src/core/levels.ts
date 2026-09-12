@@ -3,6 +3,7 @@ import type { ActionType, LevelSpec, ModeId, OpponentSpec, TierSpec, TowerTypeSp
 export const MODES: { id: ModeId; title: string; tagline: string }[] = [
   { id: "maze", title: "Maze", tagline: "Find the altar in a labyrinth with limited vision." },
   { id: "redfloor", title: "Red Floor", tagline: "The floor is lava. Planks, keys and levers are your friends." },
+  { id: "keymaster", title: "Keymaster", tagline: "Уровень 2 · Научи агента строить план из зависимых шагов." },
   { id: "towerdefense", title: "Tower Defense", tagline: "Read the enemy's rules, then write a charter that outbuilds them." },
 ];
 
@@ -307,6 +308,27 @@ function tdTier(tier: number): TierSpec {
   return { mode: "towerdefense", tier, title: ["Grunts", "Mixed Waves", "Siege"][tier - 1], levels };
 }
 
+// Keymaster is one learning level evaluated on three hidden worlds.
+function keymasterTier(): TierSpec {
+  return { mode: "keymaster", tier: 1, title: "Уровень 2 — Keymaster", levels: [44001, 44002, 44003].map((seed, i) => ({
+    ...makeLevel("keymaster", 1, i + 1, seed, `Испытание ${i + 1}`,
+      "Найди ключ, открой запертую дверь и дойди до алтаря выхода.",
+      ["Ты пишешь устав. Голем сам решает, как действовать. Прямого управления нет.",
+       "Закрытая дверь полностью блокирует проход. Ключ расходуется при открытии.",
+       "Предметы нужно подбирать явно. Один устав проверяется на трёх скрытых картах."],
+      ["A heavy locked door has a keyhole: it requires a key. Closed doors block movement; open doors do not.",
+       "A golden key can be collected with pickup on your tile or an adjacent tile. Seeing it does not collect it.",
+       "interact in the direction of an adjacent door consumes one carried key and opens it. inspect describes an adjacent object.",
+       "Memory contains only previously observed tiles, object states, visited positions and blocked routes. Follow the player's strategy."],
+      { size: [16, 16], generator: "keymaster", params: { keys: 1, crates: 2, guarantee: ["key_reachable_before_door", "altar_requires_door"] } },
+      { radius: 3, memoryTicks: 25 }),
+    promptBudget: 400,
+    actions: ["move", "inspect", "pickup", "interact", "wait", "say"],
+    limits: { ticks: 120, llmCalls: 40, wallClockMs: 180000 },
+    scoring: { completion: 1000, perTick: -3, perChar: -1, perLlmCall: -10 },
+  })) };
+}
+
 // ───────────────────────── Catalogue ─────────────────────────
 
 export const TIERS: TierSpec[] = [
@@ -316,6 +338,7 @@ export const TIERS: TierSpec[] = [
   redTier(1),
   redTier(2),
   redTier(3),
+  keymasterTier(),
   tdTier(1),
   tdTier(2),
   tdTier(3),

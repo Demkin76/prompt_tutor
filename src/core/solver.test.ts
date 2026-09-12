@@ -29,7 +29,7 @@ function walk(spec: LevelSpec, s: WorldState) {
 
 describe("scripted solver", () => {
   it("solves every tier-1 nav level (maze + redfloor) with a BFS over safe tiles inside the tick budget", () => {
-    for (const lvl of ALL_LEVELS.filter((l) => l.mode !== "towerdefense" && l.tier === 1)) {
+    for (const lvl of ALL_LEVELS.filter((l) => (l.mode === "maze" || l.mode === "redfloor") && l.tier === 1)) {
       const s = generateLevel(lvl);
       const { state, events, path } = walk(lvl, s);
       expect(path.length - 1, `${lvl.id} path ${path.length - 1} > ticks ${lvl.limits.ticks}`).toBeLessThanOrEqual(lvl.limits.ticks);

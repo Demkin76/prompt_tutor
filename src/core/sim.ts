@@ -1,6 +1,6 @@
 import { DIR_DELTA } from "./types";
 import type { Action, Dir, Entity, LevelSpec, SimEvent, SimEventType, StepResult, Vec, WorldState } from "./types";
-import { addSeen, entitiesAt, entityAt, entityById, inBounds, isWalkable, samePos, tileAt } from "./grid";
+import { addSeen, entitiesAt, entityAt, entityById, inBounds, isWalkable, manhattan, idx, samePos, tileAt } from "./grid";
 import { makeEntity } from "./generators/common";
 import { runWave } from "./wave";
 
@@ -44,6 +44,13 @@ export function step(spec: LevelSpec, state: WorldState, action: Action): StepRe
       case "place":
         doPlace(next, action.args.dir, emit, invalid);
         break;
+      case "inspect": {
+        const dir = action.args?.dir ?? next.agent.facing;
+        const pos: Vec = [next.agent.pos[0] + DIR_DELTA[dir][0], next.agent.pos[1] + DIR_DELTA[dir][1]];
+        const target = entitiesAt(next, pos).find(e => e.kind !== "golem");
+        emit("inspected", { pos, kind: target?.kind ?? tileAt(next, pos) ?? "edge", ...target?.props });
+        break;
+      }
       case "interact":
         doInteract(next, action.args?.dir ?? next.agent.facing, emit, invalid);
         break;
@@ -56,6 +63,18 @@ export function step(spec: LevelSpec, state: WorldState, action: Action): StepRe
     }
   }
 
+  if (next.keymaster) {
+    for (const e of next.entities) {
+      if ((e.kind === "door" || e.kind === "key") && !state.seen.includes(idx(next.size, e.pos)) && next.seen.includes(idx(next.size, e.pos)))
+        emit(e.kind === "door" ? "door_discovered" : "key_discovered", { id: e.id, pos: e.pos });
+    }
+    const signature = JSON.stringify([next.agent.pos, next.keymaster.key, next.entities.filter(e => e.kind === "door").map(e => e.props.open)]);
+    next.keymaster.recentStates = [...next.keymaster.recentStates, signature].slice(-16);
+    if (next.status === "running" && next.keymaster.recentStates.filter(s => s === signature).length >= 8) {
+      next.status = "lost";
+      emit("agent_stuck", { reason: "repeated_state" });
+    }
+  }
   if (next.status === "running" && next.tick >= spec.limits.ticks) {
     next.status = "out_of_budget";
     emit("budget_exhausted", { ticks: next.tick });
@@ -92,11 +111,12 @@ function doMove(spec: LevelSpec, s: WorldState, dir: Dir, emit: Emit): void {
   } else if (tile === "altar") {
     s.status = "won";
     emit("goal_reached", { pos: to });
+    if (s.keymaster) { s.keymaster.altar = "active"; emit("altar_reached", { pos: to }); }
   }
 }
 
 function doPickup(spec: LevelSpec, s: WorldState, emit: Emit, invalid: Invalid): void {
-  const item = entitiesAt(s, s.agent.pos).find((e) => e.kind === "plank" || e.kind === "key");
+  const item = s.entities.find(e => (e.kind === "plank" || e.kind === "key") && (samePos(e.pos, s.agent.pos) || (spec.mode === "keymaster" && manhattan(e.pos, s.agent.pos) === 1)));
   if (!item) return invalid("nothing_to_pick_up");
   if (item.kind === "plank") {
     const maxCarry = spec.env.params.maxCarry ?? 1;
@@ -106,6 +126,10 @@ function doPickup(spec: LevelSpec, s: WorldState, emit: Emit, invalid: Invalid):
   s.entities = s.entities.filter((e) => e.id !== item.id);
   s.agent.inventory.push(item.kind);
   emit("picked_up", { kind: item.kind, id: item.id, pos: item.pos });
+  if (s.keymaster && item.kind === "key") {
+    s.keymaster.key = "inventory";
+    emit("item_collected", { item: "item.key", id: item.id, pos: item.pos });
+  }
 }
 
 function doPlace(s: WorldState, dir: Dir, emit: Emit, invalid: Invalid): void {
@@ -129,8 +153,19 @@ function doInteract(s: WorldState, dir: Dir, emit: Emit, invalid: Invalid): void
     if (e.props.open) return invalid("door_already_open", { id: e.id });
     if (e.props.locked) {
       const k = s.agent.inventory.indexOf("key");
-      if (k < 0) return void emit("door_locked", { id: e.id, pos: target });
+      if (k < 0) {
+        emit("door_locked", { id: e.id, pos: target });
+        if (s.keymaster) emit("interaction_failed", { reason: "missing_key", id: e.id });
+        return;
+      }
       s.agent.inventory.splice(k, 1);
+      if (s.keymaster) {
+        s.keymaster.key = "consumed";
+        emit("key_consumed", { item: "item.key" });
+        emit("door_unlocked", { id: e.id });
+      }
+      e.visual.assetKey = "obj.door.open";
+      e.props.description = "Open door. The path is clear.";
       e.props.locked = false;
       e.props.open = true;
       return void emit("door_opened", { id: e.id, pos: target, with: "key" });
@@ -195,7 +230,7 @@ function syncGolemVisual(s: WorldState, events: SimEvent[]): void {
   if (!samePos(golem.pos, s.agent.pos)) golem.pos = s.agent.pos;
   const types = new Set(events.map((e) => e.type));
   if (types.has("goal_reached") || types.has("all_waves_cleared")) golem.visual.animation = "success";
-  else if (types.has("hazard_entered") || types.has("base_destroyed")) golem.visual.animation = "fail";
+  else if (types.has("hazard_entered") || types.has("base_destroyed") || s.status === "out_of_budget" || types.has("agent_stuck")) golem.visual.animation = "fail";
   else if (types.has("moved")) golem.visual.animation = "walk";
   else if (types.has("door_opened") || types.has("lever_pulled") || types.has("crate_pushed") || types.has("picked_up") || types.has("placed") || types.has("tower_placed")) golem.visual.animation = "interact";
   else golem.visual.animation = "idle";

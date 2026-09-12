@@ -34,6 +34,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Test engine and runtime
+        run: npm test
+
       # convex/_runner/bundle.ts is generated, not committed, and is imported
       # by the Convex actions — it has to exist before codegen/typecheck.
       - name: Build runner bundle
@@ -102,6 +105,11 @@ jobs:
 
       - name: Build frontend
         run: npm run build
+        env:
+          BASE_URL: ${{ steps.pages.outputs.base_path }}
+
+      - name: Check pages and assets
+        run: npm run check:site
         env:
           BASE_URL: ${{ steps.pages.outputs.base_path }}
 

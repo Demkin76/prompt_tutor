@@ -1,18 +1,41 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>GOLEM — write. animate. observe.</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap"
-      rel="stylesheet"
-    />
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>GOLEM — Write. Lock. Observe.</title><meta name="description" content="GOLEM is a prompt-locked agent game where players define behavior and watch autonomous units solve hidden worlds."><meta name="theme-color" content="#08090a"><link rel="icon" href="assets/img/favicon.svg"><link rel="stylesheet" href="assets/css/styles.css"></head><body><a class="skip-link" href="#main">Skip to content</a>
+    <div class="ambient"></div><div class="site-grid"></div><div class="noise"></div><div class="scanlines"></div><div class="cursor"></div>
+    <nav class="nav">
+      <a class="brand" href="index.html" aria-label="GOLEM home"><span class="brand-mark"><i></i></span><span>GOLEM</span></a>
+      <div class="nav-links">
+        <a href="index.html">Home</a><a href="levels.html">Levels</a><a href="technology.html">Technology</a><a href="world.html">World</a>
+      </div>
+      <details class="mobile-menu"><summary aria-label="Navigation menu">Menu</summary><div><a href="index.html">Home</a><a href="levels.html">Levels</a><a href="technology.html">Technology</a><a href="world.html">World</a></div></details>
+      <a class="btn btn-primary btn-sm magnetic" href="play.html">Launch game <span>↗</span></a>
+    </nav><main id="main">
+<section class="hero"><div class="container hero-grid">
+  <div class="reveal"><div class="eyebrow">Prompt-locked agent sandbox</div><h1 class="glitch">Write.<br><span class="outline">Lock.</span><br>Observe.</h1>
+  <p class="hero-copy">You don't control the character. You define the <strong>rules it must live by</strong>. The world appears only after the charter is locked — and one directive has to survive unknown situations.</p>
+  <div class="hero-actions"><a class="btn btn-primary" href="play.html">Launch game <span>↗</span></a><a class="btn btn-ghost" href="levels.html">Explore levels</a></div>
+  <div class="hero-meta"><span><b>01</b> Immutable charter</span><span><b>02</b> Hidden seeds</span><span><b>03</b> Deterministic proof</span></div></div>
+  <div class="hero-visual reveal" data-parallax><div class="game-shell"><img src="/assets/screenshots/redfloor-run.png" alt="GOLEM Red Floor game interface"></div><div class="float-card float-a"><b><span class="pulse-dot"></span>Directive locked</b>No manual control available</div><div class="float-card float-b"><b>3 hidden worlds</b>One charter. Zero edits.</div></div>
+</div></section>
+<div class="marquee"><div class="marquee-track"><span><b>GOLEM</b> · POLICY ≠ ROUTE · RED FLOOR · KEYMASTER · HIDDEN SEEDS · AGENT RUNTIME · VERIFIABLE OUTCOMES ·</span><span><b>GOLEM</b> · POLICY ≠ ROUTE · RED FLOOR · KEYMASTER · HIDDEN SEEDS · AGENT RUNTIME · VERIFIABLE OUTCOMES ·</span><span><b>GOLEM</b> · POLICY ≠ ROUTE · RED FLOOR · KEYMASTER · HIDDEN SEEDS · AGENT RUNTIME · VERIFIABLE OUTCOMES ·</span><span><b>GOLEM</b> · POLICY ≠ ROUTE · RED FLOOR · KEYMASTER · HIDDEN SEEDS · AGENT RUNTIME · VERIFIABLE OUTCOMES ·</span><span><b>GOLEM</b> · POLICY ≠ ROUTE · RED FLOOR · KEYMASTER · HIDDEN SEEDS · AGENT RUNTIME · VERIFIABLE OUTCOMES ·</span><span><b>GOLEM</b> · POLICY ≠ ROUTE · RED FLOOR · KEYMASTER · HIDDEN SEEDS · AGENT RUNTIME · VERIFIABLE OUTCOMES ·</span></div></div>
+<section class="section"><div class="container"><div class="section-head reveal"><div><div class="kicker">The thesis</div><h2>Natural language becomes game logic.</h2></div><p>GOLEM turns prompt engineering into a visible system. A charter is not a hint. It is the policy an autonomous unit follows while the world changes underneath it.</p></div>
+<div class="feature-grid">
+  <article class="feature reveal"><span class="n">01 / WRITE</span><span class="glyph">⌁</span><h3>Define behavior, not clicks.</h3><p>Write priorities, constraints and recovery rules. Direct movement controls do not exist.</p></article>
+  <article class="feature reveal"><span class="n">02 / LOCK</span><span class="glyph">◇</span><h3>The world arrives after.</h3><p>The map is revealed only after submission. Hard-coded routes break. Policies have to generalize.</p></article>
+  <article class="feature reveal"><span class="n">03 / PROVE</span><span class="glyph">✓</span><h3>Every win has evidence.</h3><p>Deterministic world state, event traces and tests show exactly why a run passed or failed.</p></article>
+</div></div></section>
+<section class="section"><div class="container split"><div class="media-card reveal"><img src="/assets/screenshots/keymaster-replay.png" alt="Keymaster level map"></div><div class="copy reveal"><div class="kicker">Progression that changes the question</div><h3>Every level teaches a new kind of agency.</h3><p>Red Floor asks the player to express a constraint. Keymaster introduces dependencies and subgoals. Later tracks can add negotiation, diagnosis and code execution without changing the core loop.</p>
+<div class="points"><div class="point"><span>01</span><div><b>Red Floor</b><p>Can the agent reach the goal without violating a hard constraint?</p></div></div><div class="point"><span>02</span><div><b>Keymaster</b><p>Can it discover a blocked objective, create a subgoal and return with the missing resource?</p></div></div><div class="point"><span>03</span><div><b>Next</b><p>Social reasoning, hidden rules, diagnosis and programming sandboxes.</p></div></div></div>
+<a class="btn btn-ghost" href="levels.html" style="margin-top:28px">See level system →</a></div></div></section>
+<section class="section section-tight"><div class="container"><div class="kicker reveal">Runtime</div><div class="pipeline reveal"><div class="pipe-node"><small>INPUT</small><h4>Charter</h4><p>Player policy is locked before the seed is revealed.</p></div><div class="pipe-node"><small>SENSE</small><h4>Observe</h4><p>Limited local view + remembered events.</p></div><div class="pipe-node"><small>DECIDE</small><h4>Agent</h4><p>Model chooses intent and valid actions.</p></div><div class="pipe-node"><small>WORLD</small><h4>Sim</h4><p>Deterministic state transition executes reality.</p></div><div class="pipe-node"><small>PROOF</small><h4>Verifier</h4><p>Goal, trace, tests or structured judge.</p></div></div></div></section>
+<section class="quote-band"><div class="container"><blockquote class="reveal">You are not the operator.<br>You are the <em>lawgiver.</em></blockquote></div></section>
+<section class="section" id="current-build"><div class="container"><div class="section-head reveal"><div><div class="kicker">Captured from the current build</div><h2>Real worlds.<br>Real evidence.</h2></div><p>These are browser captures of the working GOLEM application. The offline sample strategy uses the real engine and verifier; it does not evaluate a player's charter.</p></div><div class="capture-grid">
+<figure class="capture reveal"><a href="assets/screenshots/redfloor-run.png" target="_blank" rel="noopener"><img src="/assets/screenshots/redfloor-run.png" alt="Red Floor replay with the actual map, immutable charter, action log and run status" loading="lazy"></a><figcaption><b>01 / Red Floor</b>Safe movement, a locked charter, and a replayable action trace.<br><span class="capture-badge">Actual build · offline demo</span></figcaption></figure>
+<figure class="capture reveal"><a href="assets/screenshots/keymaster-replay.png" target="_blank" rel="noopener"><img src="/assets/screenshots/keymaster-replay.png" alt="Keymaster replay after the golem collected a key, opened the door and reached the altar" loading="lazy"></a><figcaption><b>02 / Keymaster</b>Three hidden layouts. A key, a locked door, and a goal that requires a subgoal.<br><span class="capture-badge">Actual build · offline demo</span></figcaption></figure>
+<figure class="capture reveal"><a href="assets/screenshots/charter-editor.png" target="_blank" rel="noopener"><img src="/assets/screenshots/charter-editor.png" alt="The real charter editor with a hidden map and a 400-character budget" loading="lazy"></a><figcaption><b>Write before you see</b>The map stays hidden until the charter is locked. No movement controls.</figcaption></figure>
+<figure class="capture reveal"><a href="assets/screenshots/keymaster-results.png" target="_blank" rel="noopener"><img src="/assets/screenshots/keymaster-results.png" alt="Keymaster results showing three passed trials with reasons, scores and replay buttons" loading="lazy"></a><figcaption><b>3 / 3 trials verified</b>The sample strategy passed all three Keymaster maps. Open the evidence and replay each decision.<br><span class="capture-badge">Actual build · offline demo</span></figcaption></figure>
+</div></div></section>
+<section class="cta"><div class="container"><div class="cta-box reveal"><div class="kicker">Ready to wake it?</div><h2>Write one rule.<br>Meet three worlds.</h2><p>Play Red Floor and Keymaster with the GOLEM engine. Lock a charter, observe three hidden worlds, and inspect the evidence in replay.</p><a class="btn btn-primary" href="play.html">Launch GOLEM <span>↗</span></a><span class="cta-rune">◇</span></div></div></section>
+</main>
+    <footer class="footer"><div class="container footer-grid">
+      <div><a class="brand" href="index.html"><span class="brand-mark"><i></i></span><span>GOLEM</span></a><div style="margin-top:14px;font-size:12px">Write the law. Wake the agent. Watch it live by it.</div></div>
+      <div><div class="footer-links"><a href="levels.html">Levels</a><a href="technology.html">Technology</a><a href="world.html">World</a><a href="play.html">Play</a></div><div class="footer-note" style="margin-top:16px">Cursor Hackathon · Agent sandbox · 2026</div></div>
+    </div></footer><script type="module" src="assets/js/app.js"></script></body></html>
