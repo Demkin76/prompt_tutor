@@ -1,3 +1,4 @@
+import { TD_TIERS } from "./levels";
 import { describe, expect, it } from "vitest";
 import { ALL_LEVELS, getLevel } from "./levels";
 import { generateLevel } from "./generators/index";
@@ -61,7 +62,7 @@ describe("scripted solver", () => {
   });
 
   it("tower defense tier 1 is winnable with a greedy coverage placement", () => {
-    const lvl = getLevel("towerdefense-t1-l1")!;
+    const lvl = TD_TIERS[0].levels[0];
     const s = generateLevel(lvl);
     const route = enemyRoute(s);
     const tower = lvl.env.params.towerTypes![0];

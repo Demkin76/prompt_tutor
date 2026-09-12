@@ -71,3 +71,17 @@ Format rules (so assets drop in without code changes):
 - SFX: step, blocked bump, plank place, door open, lever, hazard death, altar win, tower shoot, enemy die, base hit, wave start, deploy.
 
 Everything in the engine references `assetKey` only. Missing keys fall back to coloured placeholders.
+
+## Slicing the atlases (how the files in `app/public/assets` are made)
+
+```bash
+python scripts/slice-assets.py --src <folder with game.png fly.png trader.png tradeui.png sanctum.png> --out app/public/assets --sheet sheet.png
+```
+
+- Crops keep native resolution; the renderer scales to the tile size.
+- Backgrounds are keyed to alpha: paper (light atlases), dark checker (fly sheet), grey checker (FX).
+- Frames of one animation share a single bounding box, so sprites do not jitter between frames.
+- Fly: `unit.fly.<state>.<N>` is the east-facing strip (the renderer mirrors west); `unit.fly.<state>.<direction>.<N>` holds all 8 directions.
+  States: idle, walk, fly (alias interact), think, cast, buy, sell, profit, loss, success, dead (alias fail), plus hover, spin, hit, respawn, transform.
+- Trade panels (`trade.panel.*`) are the seamless preview frame with the demo content replaced by the panel's own centre texture; `atlas.json` carries the 9-slice insets.
+- `trade.indicator.cross` has no icon in the atlas and reuses the stochastic icon.
