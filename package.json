@@ -8,23 +8,30 @@
     "build": "npm run build:runner && tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview",
     "test": "vitest run",
+    "lint": "eslint convex",
     "convex:dev": "convex dev",
-    "build:runner": "node scripts/build-runner.mjs"
+    "build:runner": "node scripts/build-runner.mjs",
+    "auth:register": "bash scripts/register-user.sh",
+    "auth:rotate": "bash scripts/rotate-auth-keys.sh"
   },
   "dependencies": {
+    "@convex-dev/auth": "^0.0.95",
     "@daytonaio/sdk": "^0.211.2",
     "convex": "^1.45.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },
   "devDependencies": {
+    "@convex-dev/eslint-plugin": "^4.0.0",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",
     "@vitejs/plugin-react": "^5.0.0",
     "dotenv": "^17.4.2",
     "esbuild": "^0.25.0",
+    "eslint": "^10.10.0",
     "tsx": "^4.23.13",
     "typescript": "^5.6.3",
+    "typescript-eslint": "^8.70.0",
     "vite": "^7.1.0",
     "vitest": "^3.2.0"
   }

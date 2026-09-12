@@ -18,7 +18,7 @@ type Route =
 
 const MODE_TITLE: Record<ModeId, string> = { maze: "Maze", redfloor: "Red Floor", towerdefense: "Tower Defense" };
 
-export function App() {
+export function App({ onSignOut }: { onSignOut?: () => void }) {
   const sessionId = useMemo(getSessionId, []);
   const ensure = golemApi.useEnsureSession();
   const session = golemApi.useSession(sessionId);
@@ -56,6 +56,11 @@ export function App() {
           <span className="backend" title="Backend in use">
             {BACKEND === "convex" ? "CONVEX" : "MOCK"}
           </span>
+          {onSignOut && (
+            <button className="btn ghost small" type="button" onClick={onSignOut}>
+              SIGN OUT
+            </button>
+          )}
         </div>
       </div>
 

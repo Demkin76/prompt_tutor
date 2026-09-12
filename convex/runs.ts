@@ -1,10 +1,12 @@
-import { internalMutation, internalQuery, mutation, query, type MutationCtx } from "./_generated/server";
+import { internalMutation, internalQuery, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import { v } from "convex/values";
 import { runHost, runStatus } from "./schema";
 import { ensureSession } from "./sessions";
+import { requireUserId } from "./lib/auth";
 import { MODES, getTier, listTiers } from "../src/core/index";
 import type { ModeId, RunSummary, RunnerMessage, TierResult, TierSpec } from "../src/core/types";
+import type { Doc, Id } from "./_generated/dataModel";
 
 function newRunId(): string {
   const c = (globalThis as { crypto?: { randomUUID?: () => string } }).crypto;
@@ -31,21 +33,33 @@ async function loadRun(ctx: MutationCtx, runId: string) {
     .unique();
 }
 
+async function requireOwnedRun(
+  ctx: QueryCtx | MutationCtx,
+  runId: string,
+): Promise<Doc<"runs"> | null> {
+  const userId = await requireUserId(ctx);
+  const run = await ctx.db
+    .query("runs")
+    .withIndex("by_runId", (q) => q.eq("runId", runId))
+    .unique();
+  if (run && run.userId !== userId) throw new Error("Run not found");
+  return run;
+}
+
 // ───────────────────────── Public API ─────────────────────────
 
 export const create = mutation({
   args: {
-    sessionId: v.string(),
     mode: v.string(),
     tier: v.number(),
     charter: v.string(),
   },
-  handler: async (ctx, { sessionId, mode, tier, charter }): Promise<string> => {
-    if (!sessionId) throw new Error("sessionId is required");
+  handler: async (ctx, { mode, tier, charter }): Promise<string> => {
     if (!MODES.some((m) => m.id === mode)) throw new Error(`Unknown mode: ${mode}`);
     if (!Number.isInteger(tier) || tier < 1) throw new Error(`Invalid tier: ${tier}`);
 
-    const session = await ensureSession(ctx, sessionId);
+    const userId = await requireUserId(ctx);
+    const session = await ensureSession(ctx, userId);
     const unlocked = Number(session.progress?.[mode] ?? 1);
     if (tier > unlocked) throw new Error(`Tier ${tier} is locked for ${mode} (unlocked: ${unlocked})`);
 
@@ -57,8 +71,9 @@ export const create = mutation({
 
     const runId = newRunId();
     await ctx.db.insert("runs", {
+      userId,
       runId,
-      sessionId,
+      sessionId: session.sessionId,
       mode,
       tier,
       currentTier: tier,
@@ -93,7 +108,7 @@ export const ingest = mutation({
           .withIndex("by_run_level", (q) => q.eq("runId", runId).eq("levelId", msg.levelId))
           .unique();
         if (existing) {
-          await ctx.db.patch(existing._id, { seed: msg.seed, spec: msg.spec, initialState: msg.initialState });
+          await ctx.db.patch("levelRuns", existing._id, { seed: msg.seed, spec: msg.spec, initialState: msg.initialState });
         } else {
           const count = (await ctx.db.query("levelRuns").withIndex("by_run", (q) => q.eq("runId", runId)).collect()).length;
           await ctx.db.insert("levelRuns", {
@@ -105,7 +120,7 @@ export const ingest = mutation({
             order: count,
           });
         }
-        if (run.status === "queued") await ctx.db.patch(run._id, { status: "running" });
+        if (run.status === "queued") await ctx.db.patch("runs", run._id, { status: "running" });
         return;
       }
       case "decision": {
@@ -132,7 +147,7 @@ export const ingest = mutation({
           .withIndex("by_run_level", (q) => q.eq("runId", runId).eq("levelId", msg.levelId))
           .unique();
         if (levelRun) {
-          await ctx.db.patch(levelRun._id, { result: msg.result, replay: msg.replay });
+          await ctx.db.patch("levelRuns", levelRun._id, { result: msg.result, replay: msg.replay });
         } else {
           // level_start got lost — still persist what we have.
           const count = (await ctx.db.query("levelRuns").withIndex("by_run", (q) => q.eq("runId", runId)).collect()).length;
@@ -173,19 +188,20 @@ export const ingest = mutation({
           tiers: ladder,
           reachedTier: currentTier,
         };
-        await applyRunToSession(ctx, run.sessionId, run.mode, currentTier, run.charter, tierSummary);
+        if (!run.userId) throw new Error("Run has no owner");
+        await applyRunToSession(ctx, run.userId, run.mode, currentTier, run.charter, tierSummary);
         const maxTier = listTiers(run.mode as ModeId).length;
         if (tierSummary.tierUnlocked && currentTier < maxTier) {
-          await ctx.db.patch(run._id, { summary, ladder, currentTier: currentTier + 1, status: "running" });
+          await ctx.db.patch("runs", run._id, { summary, ladder, currentTier: currentTier + 1, status: "running" });
           await ctx.scheduler.runAfter(0, internal.launch.run, { runId });
         } else {
-          await ctx.db.patch(run._id, { summary, ladder, status: "finished", finishedAt: Date.now() });
+          await ctx.db.patch("runs", run._id, { summary, ladder, status: "finished", finishedAt: Date.now() });
         }
         return;
       }
       case "error": {
         if (run.status === "finished") return; // late/duplicate error after success — ignore
-        await ctx.db.patch(run._id, { status: "error", error: String(msg.message ?? "unknown error"), finishedAt: Date.now() });
+        await ctx.db.patch("runs", run._id, { status: "error", error: String(msg.message ?? "unknown error"), finishedAt: Date.now() });
         return;
       }
       default:
@@ -196,13 +212,13 @@ export const ingest = mutation({
 
 async function applyRunToSession(
   ctx: MutationCtx,
-  sessionId: string,
+  userId: Id<"users">,
   mode: string,
   tier: number,
   charter: string,
   summary: RunSummary,
 ): Promise<void> {
-  const session = await ensureSession(ctx, sessionId);
+  const session = await ensureSession(ctx, userId);
   const progress: Record<string, number> = { ...(session.progress ?? {}) };
   const best: Record<string, { score: number; passedLevels: number; charter: string }> = { ...(session.best ?? {}) };
 
@@ -217,25 +233,23 @@ async function applyRunToSession(
     (summary.passedLevels === prev.passedLevels && summary.score > prev.score);
   if (better) best[key] = { score: summary.score, passedLevels: summary.passedLevels, charter };
 
-  await ctx.db.patch(session._id, { progress, best, updatedAt: Date.now() });
+  await ctx.db.patch("sessions", session._id, { progress, best, updatedAt: Date.now() });
 }
 
 export const get = query({
   args: { runId: v.string() },
   handler: async (ctx, { runId }) => {
-    return await ctx.db
-      .query("runs")
-      .withIndex("by_runId", (q) => q.eq("runId", runId))
-      .unique();
+    return await requireOwnedRun(ctx, runId);
   },
 });
 
 export const bySession = query({
-  args: { sessionId: v.string() },
-  handler: async (ctx, { sessionId }) => {
+  args: {},
+  handler: async (ctx) => {
+    const userId = await requireUserId(ctx);
     return await ctx.db
       .query("runs")
-      .withIndex("by_session", (q) => q.eq("sessionId", sessionId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .order("desc")
       .take(20);
   },
@@ -244,6 +258,7 @@ export const bySession = query({
 export const levelRuns = query({
   args: { runId: v.string() },
   handler: async (ctx, { runId }) => {
+    if (!(await requireOwnedRun(ctx, runId))) return [];
     const rows = await ctx.db
       .query("levelRuns")
       .withIndex("by_run", (q) => q.eq("runId", runId))
@@ -255,6 +270,7 @@ export const levelRuns = query({
 export const frames = query({
   args: { runId: v.string(), levelId: v.string(), afterTick: v.optional(v.number()) },
   handler: async (ctx, { runId, levelId, afterTick }) => {
+    if (!(await requireOwnedRun(ctx, runId))) return [];
     const after = afterTick ?? -1;
     return await ctx.db
       .query("frames")
@@ -267,6 +283,7 @@ export const frames = query({
 export const decisions = query({
   args: { runId: v.string(), levelId: v.string() },
   handler: async (ctx, { runId, levelId }) => {
+    if (!(await requireOwnedRun(ctx, runId))) return [];
     const rows = await ctx.db
       .query("decisions")
       .withIndex("by_run_level", (q) => q.eq("runId", runId).eq("levelId", levelId))
@@ -294,6 +311,6 @@ export const setHost = internalMutation({
     if (!run) throw new Error(`Unknown runId: ${runId}`);
     const patch: { host: "daytona" | "inprocess"; status?: "queued" | "running" | "finished" | "error" } = { host };
     if (status && run.status !== "finished" && run.status !== "error") patch.status = status;
-    await ctx.db.patch(run._id, patch);
+    await ctx.db.patch("runs", run._id, patch);
   },
 });

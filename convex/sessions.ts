@@ -1,7 +1,9 @@
 import { mutation, query, type MutationCtx } from "./_generated/server";
-import type { Doc } from "./_generated/dataModel";
+import type { Doc, Id } from "./_generated/dataModel";
 import { v } from "convex/values";
 import { MODES } from "../src/core/index";
+import schema from "./schema";
+import { requireUserId } from "./lib/auth";
 
 export function defaultProgress(): Record<string, number> {
   const progress: Record<string, number> = {};
@@ -9,36 +11,41 @@ export function defaultProgress(): Record<string, number> {
   return progress;
 }
 
-/** Load-or-create a session row. Shared by sessions.ensure and runs.* mutations. */
-export async function ensureSession(ctx: MutationCtx, sessionId: string): Promise<Doc<"sessions">> {
+/** Load-or-create the current user's game profile. */
+export async function ensureSession(ctx: MutationCtx, userId: Id<"users">): Promise<Doc<"sessions">> {
   const existing = await ctx.db
     .query("sessions")
-    .withIndex("by_sessionId", (q) => q.eq("sessionId", sessionId))
+    .withIndex("by_userId", (q) => q.eq("userId", userId))
     .unique();
   if (existing) return existing;
   const id = await ctx.db.insert("sessions", {
-    sessionId,
+    userId,
+    sessionId: userId,
     progress: defaultProgress(),
     best: {},
     updatedAt: Date.now(),
   });
-  return (await ctx.db.get(id))!;
+  const session = await ctx.db.get("sessions", id);
+  if (!session) throw new Error("Failed to create user profile");
+  return session;
 }
 
 export const ensure = mutation({
-  args: { sessionId: v.string() },
-  handler: async (ctx, { sessionId }) => {
-    if (!sessionId) throw new Error("sessionId is required");
-    return await ensureSession(ctx, sessionId);
+  args: {},
+  returns: schema.doc("sessions"),
+  handler: async (ctx) => {
+    return await ensureSession(ctx, await requireUserId(ctx));
   },
 });
 
 export const get = query({
-  args: { sessionId: v.string() },
-  handler: async (ctx, { sessionId }) => {
+  args: {},
+  returns: v.union(schema.doc("sessions"), v.null()),
+  handler: async (ctx) => {
+    const userId = await requireUserId(ctx);
     return await ctx.db
       .query("sessions")
-      .withIndex("by_sessionId", (q) => q.eq("sessionId", sessionId))
+      .withIndex("by_userId", (q) => q.eq("userId", userId))
       .unique();
   },
 });

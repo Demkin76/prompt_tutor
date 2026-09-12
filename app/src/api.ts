@@ -89,14 +89,14 @@ const api = anyApi as any;
 const convexApi: GolemApi = {
   useModes: () => useQuery(api.levels.modes, {}) as ModeInfo[] | undefined,
   useTiers: (mode) => useQuery(api.levels.tiers, mode ? { mode } : "skip") as TierSpec[] | undefined,
-  useSession: (sessionId) => useQuery(api.sessions.get, { sessionId }) as SessionDoc | null | undefined,
+  useSession: () => useQuery(api.sessions.get, {}) as SessionDoc | null | undefined,
   useEnsureSession: () => {
     const m = useMutation(api.sessions.ensure);
-    return useCallback((sessionId: string) => m({ sessionId }) as Promise<SessionDoc>, [m]);
+    return useCallback((_sessionId: string) => m({}) as Promise<SessionDoc>, [m]);
   },
   useCreateRun: () => {
     const m = useMutation(api.runs.create);
-    return useCallback((args: CreateRunArgs) => m(args) as Promise<string>, [m]);
+    return useCallback(({ mode, tier, charter }: CreateRunArgs) => m({ mode, tier, charter }) as Promise<string>, [m]);
   },
   useRun: (runId) => useQuery(api.runs.get, runId ? { runId } : "skip") as RunDoc | null | undefined,
   useLevelRuns: (runId) => useQuery(api.runs.levelRuns, runId ? { runId } : "skip") as LevelRunDoc[] | undefined,
