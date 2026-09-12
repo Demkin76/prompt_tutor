@@ -10,6 +10,9 @@ test("all pages load with working assets and no client exceptions", async ({ pag
     await page.evaluate(async () => { await Promise.all(Array.from(document.images, image => { image.loading = "eager"; return image.decode().catch(() => null); })); });
     expect(await page.locator("img").evaluateAll(images => images.every(image => (image as HTMLImageElement).naturalWidth > 0))).toBe(true);
   }
+  await page.goto("index.html");
+  await page.getByRole("link", { name: "Launch game" }).first().click();
+  await expect(page.getByRole("textbox")).toBeVisible();
   expect(failures).toEqual([]);
 });
 
