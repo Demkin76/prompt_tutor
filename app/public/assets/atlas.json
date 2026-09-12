@@ -1,0 +1,1103 @@
+{
+ "tile.floor": {
+  "frames": [
+   {
+    "file": "tile.floor.png",
+    "w": 86,
+    "h": 86,
+    "box": [
+     16,
+     142,
+     99,
+     228
+    ]
+   }
+  ]
+ },
+ "tile.floor.v2": {
+  "frames": [
+   {
+    "file": "tile.floor.v2.png",
+    "w": 86,
+    "h": 86,
+    "box": [
+     103,
+     142,
+     185,
+     228
+    ]
+   }
+  ]
+ },
+ "tile.floor.v3": {
+  "frames": [
+   {
+    "file": "tile.floor.v3.png",
+    "w": 85,
+    "h": 85,
+    "box": [
+     193,
+     143,
+     275,
+     228
+    ]
+   }
+  ]
+ },
+ "tile.wall": {
+  "frames": [
+   {
+    "file": "tile.wall.png",
+    "w": 85,
+    "h": 85,
+    "box": [
+     289,
+     143,
+     374,
+     228
+    ]
+   }
+  ]
+ },
+ "tile.wall.top": {
+  "frames": [
+   {
+    "file": "tile.wall.top.png",
+    "w": 86,
+    "h": 86,
+    "box": [
+     387,
+     143,
+     473,
+     228
+    ]
+   }
+  ]
+ },
+ "tile.hazard": {
+  "frames": [
+   {
+    "file": "tile.hazard.png",
+    "w": 90,
+    "h": 90,
+    "box": [
+     485,
+     142,
+     575,
+     228
+    ]
+   }
+  ]
+ },
+ "tile.bridge": {
+  "frames": [
+   {
+    "file": "tile.bridge.png",
+    "w": 118,
+    "h": 118,
+    "box": [
+     587,
+     142,
+     705,
+     228
+    ]
+   }
+  ]
+ },
+ "tile.altar": {
+  "frames": [
+   {
+    "file": "tile.altar.png",
+    "w": 84,
+    "h": 84,
+    "box": [
+     16,
+     275,
+     99,
+     359
+    ]
+   }
+  ]
+ },
+ "tile.altar.f2": {
+  "frames": [
+   {
+    "file": "tile.altar.f2.png",
+    "w": 84,
+    "h": 84,
+    "box": [
+     103,
+     275,
+     185,
+     359
+    ]
+   }
+  ]
+ },
+ "tile.path": {
+  "frames": [
+   {
+    "file": "tile.path.png",
+    "w": 84,
+    "h": 84,
+    "box": [
+     193,
+     275,
+     272,
+     359
+    ]
+   }
+  ]
+ },
+ "tile.buildable": {
+  "frames": [
+   {
+    "file": "tile.buildable.png",
+    "w": 84,
+    "h": 84,
+    "box": [
+     275,
+     275,
+     355,
+     359
+    ]
+   }
+  ]
+ },
+ "tile.spawn": {
+  "frames": [
+   {
+    "file": "tile.spawn.png",
+    "w": 84,
+    "h": 84,
+    "box": [
+     360,
+     275,
+     444,
+     359
+    ]
+   }
+  ]
+ },
+ "tile.base": {
+  "frames": [
+   {
+    "file": "tile.base.png",
+    "w": 84,
+    "h": 84,
+    "box": [
+     449,
+     275,
+     528,
+     359
+    ]
+   }
+  ]
+ },
+ "tile.fog": {
+  "frames": [
+   {
+    "file": "tile.fog.png",
+    "w": 95,
+    "h": 95,
+    "box": [
+     538,
+     275,
+     632,
+     370
+    ]
+   }
+  ]
+ },
+ "tile.unknown": {
+  "frames": [
+   {
+    "file": "tile.unknown.png",
+    "w": 80,
+    "h": 80,
+    "box": [
+     641,
+     276,
+     715,
+     356
+    ]
+   }
+  ]
+ },
+ "unit.golem.idle": {
+  "frames": [
+   {
+    "file": "unit.golem.idle.0.png",
+    "w": 49,
+    "h": 62,
+    "box": [
+     743,
+     182,
+     792,
+     244
+    ]
+   },
+   {
+    "file": "unit.golem.idle.1.png",
+    "w": 44,
+    "h": 61,
+    "box": [
+     790,
+     182,
+     834,
+     243
+    ]
+   }
+  ]
+ },
+ "unit.golem.walk": {
+  "frames": [
+   {
+    "file": "unit.golem.walk.0.png",
+    "w": 45,
+    "h": 56,
+    "box": [
+     847,
+     186,
+     892,
+     242
+    ]
+   },
+   {
+    "file": "unit.golem.walk.1.png",
+    "w": 45,
+    "h": 56,
+    "box": [
+     890,
+     186,
+     935,
+     242
+    ]
+   },
+   {
+    "file": "unit.golem.walk.2.png",
+    "w": 45,
+    "h": 57,
+    "box": [
+     933,
+     186,
+     978,
+     243
+    ]
+   },
+   {
+    "file": "unit.golem.walk.3.png",
+    "w": 45,
+    "h": 64,
+    "box": [
+     976,
+     184,
+     1021,
+     248
+    ]
+   }
+  ]
+ },
+ "unit.golem.interact": {
+  "frames": [
+   {
+    "file": "unit.golem.interact.0.png",
+    "w": 46,
+    "h": 65,
+    "box": [
+     1027,
+     178,
+     1073,
+     243
+    ]
+   },
+   {
+    "file": "unit.golem.interact.1.png",
+    "w": 48,
+    "h": 61,
+    "box": [
+     1071,
+     182,
+     1119,
+     243
+    ]
+   }
+  ]
+ },
+ "unit.golem.fail": {
+  "frames": [
+   {
+    "file": "unit.golem.fail.0.png",
+    "w": 40,
+    "h": 77,
+    "box": [
+     1129,
+     172,
+     1169,
+     249
+    ]
+   },
+   {
+    "file": "unit.golem.fail.1.png",
+    "w": 40,
+    "h": 60,
+    "box": [
+     1167,
+     182,
+     1207,
+     242
+    ]
+   },
+   {
+    "file": "unit.golem.fail.2.png",
+    "w": 40,
+    "h": 51,
+    "box": [
+     1205,
+     191,
+     1245,
+     242
+    ]
+   },
+   {
+    "file": "unit.golem.fail.3.png",
+    "w": 36,
+    "h": 65,
+    "box": [
+     1243,
+     183,
+     1279,
+     248
+    ]
+   }
+  ]
+ },
+ "unit.golem.success": {
+  "frames": [
+   {
+    "file": "unit.golem.success.0.png",
+    "w": 40,
+    "h": 61,
+    "box": [
+     1285,
+     183,
+     1325,
+     244
+    ]
+   },
+   {
+    "file": "unit.golem.success.1.png",
+    "w": 47,
+    "h": 72,
+    "box": [
+     1327,
+     171,
+     1374,
+     243
+    ]
+   },
+   {
+    "file": "unit.golem.success.2.png",
+    "w": 57,
+    "h": 73,
+    "box": [
+     1375,
+     171,
+     1432,
+     244
+    ]
+   }
+  ]
+ },
+ "td.enemy.grunt.walk": {
+  "frames": [
+   {
+    "file": "td.enemy.grunt.walk.0.png",
+    "w": 51,
+    "h": 64,
+    "box": [
+     743,
+     328,
+     794,
+     392
+    ]
+   },
+   {
+    "file": "td.enemy.grunt.walk.1.png",
+    "w": 51,
+    "h": 63,
+    "box": [
+     792,
+     328,
+     843,
+     391
+    ]
+   },
+   {
+    "file": "td.enemy.grunt.walk.2.png",
+    "w": 51,
+    "h": 58,
+    "box": [
+     841,
+     332,
+     892,
+     390
+    ]
+   },
+   {
+    "file": "td.enemy.grunt.walk.3.png",
+    "w": 49,
+    "h": 58,
+    "box": [
+     890,
+     333,
+     939,
+     391
+    ]
+   }
+  ]
+ },
+ "td.enemy.runner.walk": {
+  "frames": [
+   {
+    "file": "td.enemy.runner.walk.0.png",
+    "w": 44,
+    "h": 56,
+    "box": [
+     961,
+     335,
+     1005,
+     391
+    ]
+   },
+   {
+    "file": "td.enemy.runner.walk.1.png",
+    "w": 44,
+    "h": 56,
+    "box": [
+     1006,
+     335,
+     1050,
+     391
+    ]
+   },
+   {
+    "file": "td.enemy.runner.walk.2.png",
+    "w": 40,
+    "h": 55,
+    "box": [
+     1053,
+     335,
+     1093,
+     390
+    ]
+   },
+   {
+    "file": "td.enemy.runner.walk.3.png",
+    "w": 42,
+    "h": 56,
+    "box": [
+     1096,
+     335,
+     1138,
+     391
+    ]
+   }
+  ]
+ },
+ "td.enemy.brute.walk": {
+  "frames": [
+   {
+    "file": "td.enemy.brute.walk.0.png",
+    "w": 67,
+    "h": 78,
+    "box": [
+     1159,
+     319,
+     1226,
+     397
+    ]
+   },
+   {
+    "file": "td.enemy.brute.walk.1.png",
+    "w": 74,
+    "h": 75,
+    "box": [
+     1224,
+     319,
+     1298,
+     394
+    ]
+   },
+   {
+    "file": "td.enemy.brute.walk.2.png",
+    "w": 70,
+    "h": 72,
+    "box": [
+     1299,
+     319,
+     1369,
+     391
+    ]
+   },
+   {
+    "file": "td.enemy.brute.walk.3.png",
+    "w": 67,
+    "h": 75,
+    "box": [
+     1367,
+     319,
+     1434,
+     394
+    ]
+   }
+  ]
+ },
+ "item.plank": {
+  "frames": [
+   {
+    "file": "item.plank.png",
+    "w": 67,
+    "h": 66,
+    "box": [
+     21,
+     507,
+     88,
+     573
+    ]
+   }
+  ]
+ },
+ "item.key": {
+  "frames": [
+   {
+    "file": "item.key.png",
+    "w": 55,
+    "h": 65,
+    "box": [
+     111,
+     504,
+     166,
+     569
+    ]
+   }
+  ]
+ },
+ "obj.door.closed": {
+  "frames": [
+   {
+    "file": "obj.door.closed.png",
+    "w": 86,
+    "h": 98,
+    "box": [
+     193,
+     481,
+     279,
+     579
+    ]
+   }
+  ]
+ },
+ "obj.door.open": {
+  "frames": [
+   {
+    "file": "obj.door.open.png",
+    "w": 87,
+    "h": 101,
+    "box": [
+     291,
+     478,
+     378,
+     579
+    ]
+   }
+  ]
+ },
+ "obj.lever.off": {
+  "frames": [
+   {
+    "file": "obj.lever.off.png",
+    "w": 56,
+    "h": 67,
+    "box": [
+     403,
+     507,
+     459,
+     574
+    ]
+   }
+  ]
+ },
+ "obj.lever.on": {
+  "frames": [
+   {
+    "file": "obj.lever.on.png",
+    "w": 70,
+    "h": 86,
+    "box": [
+     500,
+     488,
+     570,
+     574
+    ]
+   }
+  ]
+ },
+ "obj.crate": {
+  "frames": [
+   {
+    "file": "obj.crate.png",
+    "w": 72,
+    "h": 88,
+    "box": [
+     593,
+     491,
+     665,
+     579
+    ]
+   }
+  ]
+ },
+ "td.tower.archer": {
+  "frames": [
+   {
+    "file": "td.tower.archer.png",
+    "w": 101,
+    "h": 129,
+    "box": [
+     709,
+     456,
+     810,
+     585
+    ]
+   }
+  ]
+ },
+ "td.tower.cannon": {
+  "frames": [
+   {
+    "file": "td.tower.cannon.png",
+    "w": 87,
+    "h": 105,
+    "box": [
+     824,
+     477,
+     911,
+     582
+    ]
+   }
+  ]
+ },
+ "td.tower.ballista": {
+  "frames": [
+   {
+    "file": "td.tower.ballista.png",
+    "w": 99,
+    "h": 128,
+    "box": [
+     934,
+     453,
+     1033,
+     581
+    ]
+   }
+  ]
+ },
+ "td.projectile": {
+  "frames": [
+   {
+    "file": "td.projectile.png",
+    "w": 62,
+    "h": 62,
+    "box": [
+     1069,
+     499,
+     1131,
+     561
+    ]
+   }
+  ]
+ },
+ "td.base": {
+  "frames": [
+   {
+    "file": "td.base.png",
+    "w": 134,
+    "h": 134,
+    "box": [
+     1152,
+     446,
+     1286,
+     580
+    ]
+   }
+  ]
+ },
+ "td.base.damaged": {
+  "frames": [
+   {
+    "file": "td.base.damaged.png",
+    "w": 129,
+    "h": 135,
+    "box": [
+     1293,
+     444,
+     1422,
+     579
+    ]
+   }
+  ]
+ },
+ "ui.panel.parchment": {
+  "frames": [
+   {
+    "file": "ui.panel.parchment.png",
+    "w": 198,
+    "h": 171,
+    "box": [
+     19,
+     675,
+     217,
+     846
+    ]
+   }
+  ]
+ },
+ "ui.panel.stone": {
+  "frames": [
+   {
+    "file": "ui.panel.stone.png",
+    "w": 201,
+    "h": 173,
+    "box": [
+     248,
+     673,
+     449,
+     846
+    ]
+   }
+  ]
+ },
+ "ui.button.primary": {
+  "frames": [
+   {
+    "file": "ui.button.primary.png",
+    "w": 131,
+    "h": 54,
+    "box": [
+     466,
+     667,
+     597,
+     721
+    ]
+   }
+  ]
+ },
+ "ui.button.primary.pressed": {
+  "frames": [
+   {
+    "file": "ui.button.primary.pressed.png",
+    "w": 130,
+    "h": 54,
+    "box": [
+     606,
+     667,
+     736,
+     721
+    ]
+   }
+  ]
+ },
+ "ui.button.secondary": {
+  "frames": [
+   {
+    "file": "ui.button.secondary.png",
+    "w": 155,
+    "h": 60,
+    "box": [
+     519,
+     767,
+     674,
+     827
+    ]
+   }
+  ]
+ },
+ "ui.icon.heart": {
+  "frames": [
+   {
+    "file": "ui.icon.heart.png",
+    "w": 36,
+    "h": 44,
+    "box": [
+     765,
+     693,
+     801,
+     737
+    ]
+   }
+  ]
+ },
+ "ui.icon.heart.empty": {
+  "frames": [
+   {
+    "file": "ui.icon.heart.empty.png",
+    "w": 38,
+    "h": 44,
+    "box": [
+     823,
+     693,
+     861,
+     737
+    ]
+   }
+  ]
+ },
+ "ui.icon.footsteps": {
+  "frames": [
+   {
+    "file": "ui.icon.footsteps.png",
+    "w": 53,
+    "h": 44,
+    "box": [
+     878,
+     693,
+     931,
+     737
+    ]
+   }
+  ]
+ },
+ "ui.icon.lock": {
+  "frames": [
+   {
+    "file": "ui.icon.lock.png",
+    "w": 32,
+    "h": 44,
+    "box": [
+     952,
+     693,
+     984,
+     737
+    ]
+   }
+  ]
+ },
+ "ui.icon.unlock": {
+  "frames": [
+   {
+    "file": "ui.icon.unlock.png",
+    "w": 39,
+    "h": 44,
+    "box": [
+     1011,
+     693,
+     1050,
+     737
+    ]
+   }
+  ]
+ },
+ "ui.icon.brain": {
+  "frames": [
+   {
+    "file": "ui.icon.brain.png",
+    "w": 39,
+    "h": 44,
+    "box": [
+     1080,
+     693,
+     1119,
+     737
+    ]
+   }
+  ]
+ },
+ "ui.icon.skull": {
+  "frames": [
+   {
+    "file": "ui.icon.skull.png",
+    "w": 37,
+    "h": 46,
+    "box": [
+     764,
+     773,
+     801,
+     819
+    ]
+   }
+  ]
+ },
+ "ui.icon.check": {
+  "frames": [
+   {
+    "file": "ui.icon.check.png",
+    "w": 38,
+    "h": 45,
+    "box": [
+     814,
+     774,
+     852,
+     819
+    ]
+   }
+  ]
+ },
+ "ui.icon.cross": {
+  "frames": [
+   {
+    "file": "ui.icon.cross.png",
+    "w": 34,
+    "h": 33,
+    "box": [
+     871,
+     775,
+     905,
+     808
+    ]
+   }
+  ]
+ },
+ "ui.icon.play": {
+  "frames": [
+   {
+    "file": "ui.icon.play.png",
+    "w": 28,
+    "h": 46,
+    "box": [
+     928,
+     773,
+     956,
+     819
+    ]
+   }
+  ]
+ },
+ "ui.icon.pause": {
+  "frames": [
+   {
+    "file": "ui.icon.pause.png",
+    "w": 33,
+    "h": 35,
+    "box": [
+     977,
+     773,
+     1010,
+     808
+    ]
+   }
+  ]
+ },
+ "ui.icon.replay": {
+  "frames": [
+   {
+    "file": "ui.icon.replay.png",
+    "w": 37,
+    "h": 46,
+    "box": [
+     1028,
+     773,
+     1065,
+     819
+    ]
+   }
+  ]
+ },
+ "ui.icon.tower": {
+  "frames": [
+   {
+    "file": "ui.icon.tower.png",
+    "w": 35,
+    "h": 45,
+    "box": [
+     1085,
+     773,
+     1120,
+     818
+    ]
+   }
+  ]
+ },
+ "ui.logo": {
+  "frames": [
+   {
+    "file": "ui.logo.png",
+    "w": 270,
+    "h": 86,
+    "box": [
+     1155,
+     659,
+     1425,
+     745
+    ]
+   }
+  ]
+ },
+ "ui.mascot": {
+  "frames": [
+   {
+    "file": "ui.mascot.0.png",
+    "w": 80,
+    "h": 86,
+    "box": [
+     1155,
+     771,
+     1235,
+     857
+    ]
+   },
+   {
+    "file": "ui.mascot.1.png",
+    "w": 84,
+    "h": 98,
+    "box": [
+     1240,
+     759,
+     1324,
+     857
+    ]
+   },
+   {
+    "file": "ui.mascot.2.png",
+    "w": 78,
+    "h": 91,
+    "box": [
+     1337,
+     766,
+     1415,
+     857
+    ]
+   }
+  ]
+ },
+ "bg.dungeon_wall": {
+  "frames": [
+   {
+    "file": "bg.dungeon_wall.png",
+    "w": 624,
+    "h": 138,
+    "box": [
+     16,
+     919,
+     640,
+     1057
+    ]
+   }
+  ]
+ },
+ "fg.table": {
+  "frames": [
+   {
+    "file": "fg.table.png",
+    "w": 417,
+    "h": 138,
+    "box": [
+     651,
+     919,
+     1068,
+     1057
+    ]
+   }
+  ]
+ }
+}

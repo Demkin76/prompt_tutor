@@ -1,3 +1,4 @@
+import { assetUrl } from "./assets";
 import { useEffect, useMemo, useState } from "react";
 import type { ModeId } from "@core/types";
 import { BACKEND, golemApi } from "./api";
@@ -37,7 +38,7 @@ export function App() {
     <div className="app">
       <div className="topbar">
         <div className="brand" onClick={() => setRoute({ s: "home" })} title="Home">
-          <h1>GOLEM</h1>
+          <img className="logo" src={assetUrl("ui.logo")} alt="GOLEM" />
           <span className="tag">write. animate. observe.</span>
         </div>
         <div className="crumbs">
