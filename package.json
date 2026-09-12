@@ -1,0 +1,29 @@
+{
+  "name": "golem",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "npm run build:runner && tsc -p tsconfig.json --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "convex:dev": "convex dev",
+    "build:runner": "node scripts/build-runner.mjs"
+  },
+  "dependencies": {
+    "@daytonaio/sdk": "^0.211.2",
+    "convex": "^1.45.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^5.0.0",
+    "esbuild": "^0.25.0",
+    "typescript": "^5.6.3",
+    "vite": "^7.1.0",
+    "vitest": "^3.2.0"
+  }
+}
