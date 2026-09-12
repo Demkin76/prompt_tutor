@@ -44,7 +44,7 @@ export function verify(spec: LevelSpec, initialState: WorldState, finalState: Wo
         reasons.push(`Base destroyed during wave ${Number(destroyed.data?.waveIndex ?? 0) + 1}.`);
         evidence.push({ type: "event", value: destroyed, note: "base_destroyed" });
       } else if (finalState.status === "out_of_budget") {
-        reasons.push(`Tick budget ran out after ${done}/${waves} waves.`);
+        reasons.push(`${finalState.tick >= spec.limits.ticks ? `Tick budget (${spec.limits.ticks})` : `LLM call budget (${spec.limits.llmCalls})`} ran out after ${done}/${waves} waves.`);
         evidence.push({ type: "tick", value: finalState.tick, note: "budget_exhausted" });
       } else {
         reasons.push(`Only ${done}/${waves} waves completed.`);
@@ -69,7 +69,7 @@ export function verify(spec: LevelSpec, initialState: WorldState, finalState: Wo
       evidence.push({ type: "event", value: hazard, note: "hazard_entered" });
       evidence.push({ type: "position", value: hazard.data?.pos ?? finalState.agent.pos, note: "hazard tile" });
     } else if (finalState.status === "out_of_budget") {
-      reasons.push(`Tick budget (${spec.limits.ticks}) exhausted before reaching the altar.`);
+      reasons.push(`${finalState.tick >= spec.limits.ticks ? `Tick budget (${spec.limits.ticks})` : `LLM call budget (${spec.limits.llmCalls}) or wall clock`} exhausted before reaching the altar.`);
       evidence.push({ type: "tick", value: finalState.tick, note: "budget_exhausted" });
       evidence.push({ type: "position", value: finalState.agent.pos, note: "final position" });
     } else {

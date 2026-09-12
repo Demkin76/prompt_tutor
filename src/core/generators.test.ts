@@ -25,8 +25,8 @@ describe("level catalogue", () => {
   it("budgets and limits escalate per tier", () => {
     for (const l of ALL_LEVELS) {
       expect(l.promptBudget).toBe([200, 300, 400][l.tier - 1]);
-      expect(l.limits.ticks).toBe([60, 100, 150][l.tier - 1]);
-      expect(l.limits.llmCalls).toBe([8, 12, 16][l.tier - 1]);
+      expect(l.limits.ticks).toBe([80, 140, 200][l.tier - 1]);
+      expect(l.limits.llmCalls).toBe([15, 25, 40][l.tier - 1]);
       if (l.mode === "towerdefense") expect(l.opponent?.charter.length).toBeGreaterThan(20);
     }
   });

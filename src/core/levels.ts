@@ -12,9 +12,9 @@ const TD_ACTIONS: ActionType[] = ["place_tower", "start_wave", "wait", "say"];
 const PROMPT_BUDGET = [0, 200, 300, 400];
 const LIMITS = [
   null,
-  { ticks: 60, llmCalls: 8, wallClockMs: 60000 },
-  { ticks: 100, llmCalls: 12, wallClockMs: 90000 },
-  { ticks: 150, llmCalls: 16, wallClockMs: 120000 },
+  { ticks: 80, llmCalls: 15, wallClockMs: 90000 },
+  { ticks: 140, llmCalls: 25, wallClockMs: 150000 },
+  { ticks: 200, llmCalls: 40, wallClockMs: 180000 },
 ];
 const SCORING = { completion: 100, perTick: -0.5, perChar: -0.05, perLlmCall: -1 };
 
