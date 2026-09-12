@@ -46,9 +46,9 @@ Format rules (so assets drop in without code changes):
 | obj.lever.off    | lever, off                                        |
 | obj.lever.on     | lever, on                                         |
 | obj.crate        | pushable crate                                    |
-| td.tower.arrow   | basic tower (short range, fast)                   |
-| td.tower.cannon  | heavy tower (long range, slow)                    |
-| td.tower.frost   | slowing tower (optional)                          |
+| td.tower.archer  | basic tower (tier 1+): short range, fast          |
+| td.tower.cannon  | heavy tower (tier 2+): mid range, high damage      |
+| td.tower.ballista| long-range tower (tier 3)                         |
 | td.projectile    | small 8×8 arrow/bolt                              |
 | td.base          | player's base building (2 states: intact, damaged)|
 
